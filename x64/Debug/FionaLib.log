@@ -1,0 +1,34 @@
+﻿Build started 7/5/2017 2:04:50 PM.
+     1>Project "S:\apps\dual_test\FionaLib\FionaLib.vcxproj" on node 2 (Rebuild target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /I.\include /Zi /nologo /W3 /WX- /Od /D WIN32 /D _WIN64 /D _DEBUG /D _LIB /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Debug\\" /Fd"x64\Debug\vc120.pdb" /Gd /TP /errorReport:prompt FionaNetwork.cpp FionaScene.cpp FionaUT.cpp FionaUTConfig.cpp FionaUTEvent.cpp FionaUTRender.cpp FionaUTVRPN.cpp FionaUTWin32.cpp Socket.cpp VRAction.cpp
+         VRAction.cpp
+         Socket.cpp
+         FionaUTWin32.cpp
+         FionaUTVRPN.cpp
+         FionaUTRender.cpp
+         FionaUTEvent.cpp
+         FionaUTConfig.cpp
+         FionaUT.cpp
+         FionaScene.cpp
+     1>FionaScene.cpp(873): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+         GLM: rotate function taking degrees as a parameter is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
+         FionaNetwork.cpp
+         Generating Code...
+       Lib:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\Lib.exe /OUT:"lib64\FionaLibd.lib" /NOLOGO /MACHINE:X64 x64\Debug\FionaNetwork.obj
+         x64\Debug\FionaScene.obj
+         x64\Debug\FionaUT.obj
+         x64\Debug\FionaUTConfig.obj
+         x64\Debug\FionaUTEvent.obj
+         x64\Debug\FionaUTRender.obj
+         x64\Debug\FionaUTVRPN.obj
+         x64\Debug\FionaUTWin32.obj
+         x64\Debug\Socket.obj
+         x64\Debug\VRAction.obj
+         FionaLib.vcxproj -> S:\apps\dual_test\FionaLib\lib64\FionaLibd.lib
+     1>Done Building Project "S:\apps\dual_test\FionaLib\FionaLib.vcxproj" (Rebuild target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:30.81

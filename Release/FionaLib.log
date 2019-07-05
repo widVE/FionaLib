@@ -1,0 +1,32 @@
+﻿Build started 6/12/2019 1:32:46 PM.
+     1>Project "S:\apps\dual_test\FionaLib\FionaLib.vcxproj" on node 2 (Rebuild target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I.\include /Zi /nologo /W3 /WX- /O2 /Oi /Oy- /GL /D WIN32 /D NDEBUG /D _LIB /D _MBCS /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Release\\" /Fd"Release\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt FionaNetwork.cpp FionaScene.cpp FionaUT.cpp FionaUTConfig.cpp FionaUTEvent.cpp FionaUTRender.cpp FionaUTVRPN.cpp FionaUTWin32.cpp Socket.cpp VRAction.cpp
+         FionaNetwork.cpp
+         FionaScene.cpp
+         GLM: rotate function taking degrees as a parameter is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
+         FionaUT.cpp
+         FionaUTConfig.cpp
+         FionaUTEvent.cpp
+         FionaUTRender.cpp
+         FionaUTVRPN.cpp
+         FionaUTWin32.cpp
+         Socket.cpp
+         VRAction.cpp
+       Lib:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\Lib.exe /OUT:"lib\FionaLib.lib" /NOLOGO /LTCG Release\FionaNetwork.obj
+         Release\FionaScene.obj
+         Release\FionaUT.obj
+         Release\FionaUTConfig.obj
+         Release\FionaUTEvent.obj
+         Release\FionaUTRender.obj
+         Release\FionaUTVRPN.obj
+         Release\FionaUTWin32.obj
+         Release\Socket.obj
+         Release\VRAction.obj
+         FionaLib.vcxproj -> S:\apps\dual_test\FionaLib\lib\FionaLib.lib
+     1>Done Building Project "S:\apps\dual_test\FionaLib\FionaLib.vcxproj" (Rebuild target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:13.52

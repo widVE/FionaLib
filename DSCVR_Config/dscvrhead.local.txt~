@@ -1,0 +1,6 @@
+fullscreen 0
+#app HEADNODE
+numSlaves 10
+trackerServer 144.92.182.143
+trackerOffset 0 0 0
+framerate 10000
