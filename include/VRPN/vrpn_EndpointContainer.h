@@ -20,6 +20,7 @@
 // Internal Includes
 #include "vrpn_Types.h"
 #include "vrpn_Configure.h"
+#include "vrpn_Shared.h"
 
 #include "vrpn_Assert.h"
 
@@ -27,7 +28,6 @@
 // - none
 
 // Standard includes
-#include <vector>
 #include <stddef.h> // for NULL
 
 class VRPN_API vrpn_Endpoint;
@@ -60,7 +60,7 @@ namespace vrpn {
         typedef vrpn_Endpoint *base_pointer;
 
     private:
-        typedef std::vector<pointer> container_type;
+        typedef vrpn_vector<pointer> container_type;
 
     public:
         typedef container_type::size_type size_type;
@@ -216,7 +216,7 @@ namespace vrpn {
         /// @brief Extract the pointer (NULL if iterator is invalid)
         pointer get_pointer() const
         {
-            VRPN_ECITERATOR_ASSERT_INVARIANT();
+          // We can be a nullptr, so don't check VRPN_ECITERATOR_ASSERT_INVARIANT();
             // Only need to condition on container validity: invalid indexes
             // safely return null from get_raw_()
             return container_ ? (get_raw_()) : NULL;
@@ -225,7 +225,7 @@ namespace vrpn {
         /// @brief Implicit conversion operator to pointer.
         operator pointer() const
         {
-            VRPN_ECITERATOR_ASSERT_INVARIANT();
+            // We can be a nullptr, so don't check VRPN_ECITERATOR_ASSERT_INVARIANT();
             return get_pointer();
         }
 

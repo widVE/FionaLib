@@ -3,8 +3,8 @@
 //  FionaUT
 //
 //  Created by Hyun Joon Shin on 5/17/12.
-//  Updated and work continued by Ross Tredinnick 2012-2013
-//  Living Environments Laboratory - Wisconsin Institutes for Discovery
+//  Updated and work continued by Ross Tredinnick 2012-2019
+//  Living Environments Laboratory, Virtual Environments Groups - Wisconsin Institutes for Discovery
 //  Copyright 2012 __MyCompanyName__. All rights reserved.
 //
 
@@ -67,8 +67,15 @@ const FionaViewport VP_CAVE_PRIM_LO(0,  0,1,Q,    0,0,0.25f,1);
 const FionaViewport VP_CAVE_PRIM_HI(0,1-Q,1,Q,0.25f,0,0.25f,1);
 const FionaViewport VP_CAVE_SECN_LO(0,  0,1,Q, 0.5f,0,0.25f,1);
 const FionaViewport VP_CAVE_SECN_HI(0,1-Q,1,Q,0.75f,0,0.25f,1);
+const FionaViewport VP_NEWDL_PRIM_LO(0, 0, 0.5, 0.3333, 0, 0, 0.25f, 1);
+const FionaViewport VP_NEWDL_PRIM_HI(0.5, 0, 0.5, 0.3333, 0.25f, 0, 0.25f, 1);
+const FionaViewport VP_NEWDL_SECN_LO(0, 0.3333, 0.5, 0.3333, 0.5f, 0, 0.25f, 1);
+const FionaViewport VP_NEWDL_SECN_HI(0.5, 0.3333, 0.5, 0.3333, 0.75f, 0, 0.25f, 1);
 const FionaViewport VP_DEVL_LO(0,  0,1,Q,   0,0,0.5,1);
 const FionaViewport VP_DEVL_HI(0,1-Q,1,Q, 0.5,0,0.5,1);
+
+const FionaViewport VP_NEWDL_TOPLEFT(0, 0.6666, 0.5, 0.3333, 0, 0, 0.5, 1);
+const FionaViewport VP_NEWDL_TOPRIGHT(0.5, 0.6666, 0.5, 0.3333, 0.5, 0, 0.5, 1);
 
 const FionaViewport VP_SPLT_STEREO(0,0,1,1, 0,0,0.5,1, 0.5,0,0.5,1);
 const FionaViewport VP_DESK(0,0,1,1,0,0,1,1);
@@ -93,10 +100,13 @@ const FionaWall WL_CV4 (jvec3(-CV_W,-CV_W, CV_W),jvec3(0,0,-CV_SZ),jvec3(0, CV_S
 const FionaWall WL_CV5 (jvec3(-CV_W, CV_W, CV_W),jvec3(0,0,-CV_SZ),jvec3( CV_SZ,0,0)); //ceiling
 const FionaWall WL_CV6 (jvec3( CV_W,-CV_W, CV_W),jvec3(0,0,-CV_SZ),jvec3(-CV_SZ,0,0)); //floor
 const FionaWall WL_DEVL(jvec3(-CV_W, -CV_W, -CV_W), jvec3(CV_SZ, 0, 0), jvec3(0, CV_SZ, 0));
+const FionaWall WL_NEW_DEVLAB(jvec3(-CV_W, -CV_W, -CV_W), jvec3(CV_SZ, 0, 0), jvec3(0, CV_SZ*.666666f, 0));	//currently an approximation.
+const FionaWall WL_NEW_DEVLAB2(jvec3(-CV_W, 0.2413, -CV_W), jvec3(CV_SZ, 0, 0), jvec3(0, CV_SZ*.333333f, 0));	//currently an approximation.
 #endif
-const FionaWall WL_DESK(jvec3(-1.5,-1.5,-1.5),jvec3(3,0,0),jvec3(0,3,0));
+//const FionaWall WL_DESK(jvec3(-1.2,-1.5,-1.5),jvec3(2.4,0,0),jvec3(0,3,0));
+const FionaWall WL_DESK(jvec3(-1.5, -1.5, -1.5), jvec3(3, 0, 0), jvec3(0, 3, 0));
 const FionaWall WL_VUZIX(jvec3(-0.68072,-0.51054,-3.048),jvec3(1.36144,0,0),jvec3(0,1.02108,0));
-const FionaWall WL_OCULUS(jvec3(-0.68072,-0.51054,-3.048),jvec3(1.36144,0,0),jvec3(0,1.02108,0));	//not actually used but just added to follow same path as split stereo
+const FionaWall WL_OCULUS(jvec3(0,0,0),jvec3(0,0,0),jvec3(0,0,0));	//not actually used but just added to follow same path as split stereo
 
 const int		DEFAULT_W=1280;
 const int		DEFAULT_H=800;
@@ -154,8 +164,8 @@ const glm::vec3	DEFAULT_BK_COLOR(0,0,0);
 const short		DEFAULT_PORT=7563;
 const short		DEFAULT_MASTER_SLAVE_PORT=7568;
 const short		DEFAULT_NUM_SLAVES=3;
-const std::string DEFAULT_MASTER_IP("192.168.4.140");
-const std::string DEFAULT_MASTER_SLAVE_IP("192.168.4.213");
+const std::string DEFAULT_MASTER_IP("10.129.24.140");
+const std::string DEFAULT_MASTER_SLAVE_IP("10.129.24.213");
 
 const int		DEFAULT_FBOW=1920;
 const int		DEFAULT_FBOH=1920;
@@ -298,8 +308,8 @@ FionaConfig fionaConf=	{
 	false,	//dual view
 	false,	//show render time
 	true,	//render on the head node
-	-1,		//time varying file index...
-	-1,		//time varying buffer index...
+	0,		//time varying file index...
+	0,		//time varying buffer index...
 	false,	//separate thread for rendering..
 	false,	//noTracking
 	false,
@@ -314,7 +324,9 @@ FionaConfig fionaConf=	{
 	false,	//whether we force the oculus FBO to match the default oculus resoltion (i.e. no oculus downsampling from a higher FBO resolution)
 	false,	//whether we force FBO size to match window size
 	false,	//whether we use layered framebuffer stereo..
-	false	//borderless window
+	false,	//borderless window
+	false,	//single pass stereo
+	1.f	//oculus res multiplier
 #ifdef ENABLE_OCULUS
 #ifdef ENABLE_DK1
 	,0
@@ -485,6 +497,24 @@ void _FionaUTSetAppType(FionaConfig::APP_TYPE type)
 			fionaConf.master=false; fionaConf.slave=true;
 			fionaConf.framerate=1000;
 			fionaConf.fullscreen=1;
+			break;
+		case FionaConfig::CAVE1_SS:
+		case FionaConfig::CAVE2_SS:
+		case FionaConfig::CAVE3_SS:
+		case FionaConfig::CAVE4_SS:
+		case FionaConfig::CAVE5_SS:
+		case FionaConfig::CAVE6_SS:
+			fionaConf.stereo = false;
+			fionaConf.splitStereo = true;
+			fionaConf.trackerOffset = C6_TO;
+			fionaConf.sensorOffset = C6_SO;
+			fionaConf.master = false; fionaConf.slave = true;
+			fionaConf.framerate = 1000;
+			fionaConf.fullscreen = -1;
+			fionaWinConf[0].winx = 0;
+			fionaWinConf[0].winy = 0;
+			fionaWinConf[0].winw = 3840;
+			fionaWinConf[0].winh = 1920;
 			break;
 		case FionaConfig::CAVE1_DUALPIPE:
 		case FionaConfig::CAVE2_DUALPIPE:
@@ -708,6 +738,49 @@ void _FionaUTSetAppType(FionaConfig::APP_TYPE type)
 			//fionaConf.desktopProjection = false;
 			//specify ip address for connecting in the config file...
 			break;
+		case FionaConfig::NEW_DEVLAB:
+			fionaConf.stereo = true;
+			fionaConf.trackerOffset = DL_TO;
+			fionaConf.sensorOffset = DL_SO;
+			fionaConf.master = true;
+			fionaConf.numSlaves = 1;
+			fionaConf.trackerServer = "localhost";
+			fionaConf.fullscreen = -1;
+			fionaWinConf[0].winy = 0;
+			fionaWinConf[0].winx = 0;
+			fionaWinConf[0].winw = 1280 * 4;
+			fionaWinConf[0].winh = 720;
+			break;
+		case FionaConfig::NEW_DEVLAB2:
+			fionaConf.stereo = true;
+			fionaConf.trackerOffset = DL_TO;
+			fionaConf.sensorOffset = DL_SO;
+			fionaConf.master = false;
+			fionaConf.slave = true;
+			fionaConf.fullscreen = -1;
+			fionaWinConf[0].winy = 0;
+			fionaWinConf[0].winx = 0;
+			fionaWinConf[0].winw = 1280 * 2;
+			fionaWinConf[0].winh = 720;
+			break;
+		case FionaConfig::CAVE_NEW_CEILING:
+		case FionaConfig::CAVE_NEW_FLOOR:
+		case FionaConfig::CAVE_NEW_LEFT:
+		case FionaConfig::CAVE_NEW_RIGHT:
+		case FionaConfig::CAVE_NEW_FRONT:
+		case FionaConfig::CAVE_NEW_DOOR:
+			fionaConf.stereo = true;
+			fionaConf.trackerOffset = C6_TO;
+			fionaConf.sensorOffset = C6_SO;
+			fionaConf.master = false; fionaConf.slave = true;
+			fionaConf.framerate = 1000;
+			fionaConf.fullscreen = 1;
+			fionaWinConf[0].winx = 0;
+			fionaWinConf[0].winy = 0;
+			fionaWinConf[0].winw = 1920;
+			fionaWinConf[0].winh = 1920;
+			fionaConf.desktopProjection = false;
+			break;
 		case FionaConfig::WINDOWED:
 		default:
 			fionaConf.stereo=false;
@@ -753,11 +826,25 @@ void _FionaUTSetAppType(const std::string& str)
 	else if (cmp(str, "CAVE4_DUALPIPE")) _FionaUTSetAppType(FionaConfig::CAVE4_DUALPIPE);
 	else if (cmp(str, "CAVE5_DUALPIPE")) _FionaUTSetAppType(FionaConfig::CAVE5_DUALPIPE);
 	else if (cmp(str, "CAVE6_DUALPIPE")) _FionaUTSetAppType(FionaConfig::CAVE6_DUALPIPE);
+	else if (cmp(str, "CAVE1_SS")) _FionaUTSetAppType(FionaConfig::CAVE1_SS);
+	else if (cmp(str, "CAVE2_SS")) _FionaUTSetAppType(FionaConfig::CAVE2_SS);
+	else if (cmp(str, "CAVE3_SS")) _FionaUTSetAppType(FionaConfig::CAVE3_SS);
+	else if (cmp(str, "CAVE4_SS")) _FionaUTSetAppType(FionaConfig::CAVE4_SS);
+	else if (cmp(str, "CAVE5_SS")) _FionaUTSetAppType(FionaConfig::CAVE5_SS);
+	else if (cmp(str, "CAVE6_SS")) _FionaUTSetAppType(FionaConfig::CAVE6_SS);
 	else if (cmp(str, "VIVE")) _FionaUTSetAppType(FionaConfig::VIVE);
 	else if (cmp(str, "DEVLAB_DUALPIPE")) _FionaUTSetAppType(FionaConfig::DEVLAB_DUALPIPE);
 	else if (cmp(str, "DEVLAB_DUALPIPE_SLAVE")) _FionaUTSetAppType(FionaConfig::DEVLAB_DUALPIPE_SLAVE);
 	else if (cmp(str, "DEVLAB_DUALVIEW_DUALPIPE")) _FionaUTSetAppType(FionaConfig::DEVLAB_DUALVIEW_DUALPIPE);
 	else if (cmp(str, "DEVLAB_DUALVIEW_DUALPIPE_SLAVE")) _FionaUTSetAppType(FionaConfig::DEVLAB_DUALVIEW_DUALPIPE_SLAVE);
+	else if (cmp(str, "NEW_DEVLAB")) _FionaUTSetAppType(FionaConfig::NEW_DEVLAB);
+	else if (cmp(str, "NEW_DEVLAB2")) _FionaUTSetAppType(FionaConfig::NEW_DEVLAB2);
+	else if (cmp(str, "CAVE_NEW_CEILING")) _FionaUTSetAppType(FionaConfig::CAVE_NEW_CEILING);
+	else if (cmp(str, "CAVE_NEW_FLOOR")) _FionaUTSetAppType(FionaConfig::CAVE_NEW_FLOOR);
+	else if (cmp(str, "CAVE_NEW_DOOR")) _FionaUTSetAppType(FionaConfig::CAVE_NEW_DOOR);
+	else if (cmp(str, "CAVE_NEW_RIGHT")) _FionaUTSetAppType(FionaConfig::CAVE_NEW_RIGHT);
+	else if (cmp(str, "CAVE_NEW_LEFT")) _FionaUTSetAppType(FionaConfig::CAVE_NEW_LEFT);
+	else if (cmp(str, "CAVE_NEW_FRONT")) _FionaUTSetAppType(FionaConfig::CAVE_NEW_FRONT);
 }
 
 bool _FionaUTCreateWallsFromStream(std::istream& is,int c)
@@ -845,7 +932,7 @@ static void _FionaUTProcessOptions(std::istream& is, const std::string& fn)
 		else if(cmp(sbuf,"rightOffset"))	fionaConf.rEyeOffset=getv3(is);
 		else if(cmp(sbuf,"framerate"))		fionaConf.framerate=getf(is);
 		else if(cmp(sbuf,"bkColor"))		fionaConf.backgroundColor=getvg3(is);
-
+		else if(cmp(sbuf,"dontClear"))		fionaConf.dontClear = true;
 		else if(cmp(sbuf,"monitorView"))	fionaConf.monitorView=true;
 		else if(cmp(sbuf,"monitorSmooth"))	fionaConf.monitorFiltering = true;
 		else if(cmp(sbuf,"stepBack"))		fionaConf.monitorStepBack=getf(is);
@@ -913,6 +1000,8 @@ static void _FionaUTProcessOptions(std::istream& is, const std::string& fn)
 		else if(cmp(sbuf, "deltaInput")) fionaConf.deltaInput = true;
 		else if (cmp(sbuf, "loadPath")) fionaConf.pathFileName = getst(is);
 		else if (cmp(sbuf, "borderless")) fionaConf.borderlessWindow = true;
+		else if (cmp(sbuf, "singlePassStereo")) fionaConf.singlePassStereo = true;
+		else if (cmp(sbuf, "oculusResMultiplier")) fionaConf.oculusResMultiplier = getf(is);
 		if( is.eof() ) break;
 	}
 }
@@ -1143,37 +1232,79 @@ void _FionaUTCreateAppTypeWindow(const char* name)
 			}
 			break;
 		}
+		case FionaConfig::CAVE1_SS:
+		{
+			fionaWinConf[c].walls.push_back(WL_CV1);
+			fionaWinConf[c].walls[0].viewports.push_back(VP_SPLT_STEREO);
+			break;
+		}
+		case FionaConfig::CAVE2_SS:
+		{
+			fionaWinConf[c].walls.push_back(WL_CV3);
+			fionaWinConf[c].walls[0].viewports.push_back(VP_SPLT_STEREO);
+			break;
+		}
+		case FionaConfig::CAVE3_SS:
+		{
+			fionaWinConf[c].walls.push_back(WL_CV6);
+			fionaWinConf[c].walls[0].viewports.push_back(VP_SPLT_STEREO);
+			break;
+		}
+		case FionaConfig::CAVE4_SS:
+		{
+			fionaWinConf[c].walls.push_back(WL_CV2);
+			fionaWinConf[c].walls[0].viewports.push_back(VP_SPLT_STEREO);
+			break;
+		}
+		case FionaConfig::CAVE5_SS:
+		{
+			fionaWinConf[c].walls.push_back(WL_CV4);
+			fionaWinConf[c].walls[0].viewports.push_back(VP_SPLT_STEREO);
+			break;
+		}
+		case FionaConfig::CAVE6_SS:
+		{
+			fionaWinConf[c].walls.push_back(WL_CV5);
+			fionaWinConf[c].walls[0].viewports.push_back(VP_SPLT_STEREO);
+			break;
+		}
 		case FionaConfig::CAVE1_WIN8:
+		case FionaConfig::CAVE_NEW_FRONT:
 		{
 			fionaWinConf[c].walls.push_back(WL_CV1);
 			fionaWinConf[c].walls[0].viewports.push_back(VP_DESK);
 			break;
 		}
 		case FionaConfig::CAVE2_WIN8:
+		case FionaConfig::CAVE_NEW_DOOR:
 		{
 			fionaWinConf[c].walls.push_back(WL_CV3);
 			fionaWinConf[c].walls[0].viewports.push_back(VP_DESK);
 			break;
 		}
 		case FionaConfig::CAVE3_WIN8:
+		case FionaConfig::CAVE_NEW_FLOOR:
 		{
 			fionaWinConf[c].walls.push_back(WL_CV6);
 			fionaWinConf[c].walls[0].viewports.push_back(VP_DESK);
 			break;
 		}
 		case FionaConfig::CAVE4_WIN8:
+		case FionaConfig::CAVE_NEW_RIGHT:
 		{
 			fionaWinConf[c].walls.push_back(WL_CV2);
 			fionaWinConf[c].walls[0].viewports.push_back(VP_DESK);
 			break;
 		}
 		case FionaConfig::CAVE5_WIN8:
+		case FionaConfig::CAVE_NEW_LEFT:
 		{
 			fionaWinConf[c].walls.push_back(WL_CV4);
 			fionaWinConf[c].walls[0].viewports.push_back(VP_DESK);
 			break;
 		}
 		case FionaConfig::CAVE6_WIN8:
+		case FionaConfig::CAVE_NEW_CEILING:
 		{
 			fionaWinConf[c].walls.push_back(WL_CV5);
 			fionaWinConf[c].walls[0].viewports.push_back(VP_DESK);
@@ -1510,9 +1641,10 @@ void _FionaUTCreateAppTypeWindow(const char* name)
 
 			fionaConf.hmdDesc = ovr_GetHmdDesc(fionaConf.session);
 
-			ovrSizei recommenedTex0Size = ovr_GetFovTextureSize(fionaConf.session, ovrEyeType(0), fionaConf.hmdDesc.DefaultEyeFov[0], 1);
-			ovrSizei recommenedTex1Size = ovr_GetFovTextureSize(fionaConf.session, ovrEyeType(1), fionaConf.hmdDesc.DefaultEyeFov[1], 1);
-			
+			ovrSizei recommenedTex0Size = ovr_GetFovTextureSize(fionaConf.session, ovrEyeType(0), fionaConf.hmdDesc.DefaultEyeFov[0], fionaConf.oculusResMultiplier);
+			ovrSizei recommenedTex1Size = ovr_GetFovTextureSize(fionaConf.session, ovrEyeType(1), fionaConf.hmdDesc.DefaultEyeFov[1], fionaConf.oculusResMultiplier);
+
+
 			ovrSizei  rtSize;
 
 			if (fionaConf.forceOculusFBOSizeMatch)
@@ -1528,7 +1660,20 @@ void _FionaUTCreateAppTypeWindow(const char* name)
 
 			//since it's split stereo, we only need our own fbo to be half the recommended size
 			fionaConf.FBOWidth = rtSize.w/2;
+			//fionaConf.FBOWidth = rtSize.w;
 			fionaConf.FBOHeight = rtSize.h;
+
+			//if (fionaConf.FBOWidth > fionaConf.FBOHeight)
+			{
+				fionaConf.desktopFOV = (atanf(fionaConf.hmdDesc.DefaultEyeFov[0].LeftTan) + atan(fionaConf.hmdDesc.DefaultEyeFov[0].RightTan)) * 180.f / 3.14159;
+			}
+
+			printf("\nField of View: %f\n", fionaConf.desktopFOV);
+
+			//else
+			{
+			//	fionaConf.desktopFOV = ((atan(MAX(fionaConf.hmdDesc.DefaultEyeFov[0].UpTan, fionaConf.hmdDesc.DefaultEyeFov[0].DownTan))*2.f) * 180.f) / 3.14159;
+			}
 #endif
 #endif
 			break;
@@ -1607,6 +1752,22 @@ void _FionaUTCreateAppTypeWindow(const char* name)
 			//last item here is for the head node..
 			fionaWinConf[c].walls.push_back(WL_DESK);
 			fionaWinConf[c].walls[fionaWinConf[c].walls.size()-1].viewports.push_back(VP_SPLT_STEREO);
+			break;
+		}
+		case FionaConfig::NEW_DEVLAB:
+		{
+			fionaWinConf[c].walls.push_back(WL_NEW_DEVLAB);
+			fionaWinConf[c].walls[fionaWinConf[c].walls.size() - 1].viewports.push_back(VP_NEWDL_PRIM_LO);
+			fionaWinConf[c].walls[fionaWinConf[c].walls.size() - 1].viewports.push_back(VP_NEWDL_PRIM_HI);
+			fionaWinConf[c].walls[fionaWinConf[c].walls.size() - 1].viewports.push_back(VP_NEWDL_SECN_LO);
+			fionaWinConf[c].walls[fionaWinConf[c].walls.size() - 1].viewports.push_back(VP_NEWDL_SECN_HI);
+			break;
+		}
+		case FionaConfig::NEW_DEVLAB2:
+		{
+			fionaWinConf[c].walls.push_back(WL_NEW_DEVLAB2);
+			fionaWinConf[c].walls[fionaWinConf[c].walls.size() - 1].viewports.push_back(VP_NEWDL_TOPLEFT);
+			fionaWinConf[c].walls[fionaWinConf[c].walls.size() - 1].viewports.push_back(VP_NEWDL_TOPRIGHT);
 			break;
 		}
 		case FionaConfig::WINDOWED:

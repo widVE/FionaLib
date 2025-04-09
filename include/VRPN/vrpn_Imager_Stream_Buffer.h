@@ -36,7 +36,12 @@ public:
     {
         while (d_first != NULL) {
             struct d_ELEMENT *next = d_first->next;
-            delete d_first;
+            try {
+              delete d_first;
+            } catch (...) {
+              fprintf(stderr, "vrpn_Message_List::~vrpn_Message_List(): delete failed\n");
+              return;
+            }
             d_first = next;
         }
     }
@@ -47,8 +52,9 @@ public:
     // Insert an element into the list.  Return false if fails.
     bool insert_back(const vrpn_HANDLERPARAM &p)
     {
-        struct d_ELEMENT *el = new struct d_ELEMENT;
-        if (el == NULL) {
+        struct d_ELEMENT *el;
+        try { el = new struct d_ELEMENT; }
+        catch (...) {
             return false;
         }
         el->p = p;
@@ -80,7 +86,12 @@ public:
         }
         struct d_ELEMENT *temp = d_first;
         d_first = d_first->next;
-        delete temp;
+        try {
+          delete temp;
+        } catch (...) {
+          fprintf(stderr, "vrpn_Message_List::retrieve_front(): delete failed\n");
+          return false;
+        }
 
         d_count--;
         return true;
@@ -198,28 +209,33 @@ public:
         if (d_new_log_request) {
             // Allocate space to return the names in the handles passed in.
             // Copy the values from our local storage to the return values.
-            if ((*lil = new char[strlen(d_request_lil) + 1]) != NULL) {
-                strcpy(*lil, d_request_lil);
+            if ((*lil = new(std::nothrow) char[strlen(d_request_lil) + 1]) != NULL) {
+                vrpn_strncpynull(*lil, d_request_lil, strlen(d_request_lil) + 1);
             }
-            if ((*lol = new char[strlen(d_request_lol) + 1]) != NULL) {
-                strcpy(*lol, d_request_lol);
+            if ((*lol = new(std::nothrow) char[strlen(d_request_lol) + 1]) != NULL) {
+                vrpn_strncpynull(*lol, d_request_lol, strlen(d_request_lol) + 1);
             }
-            if ((*ril = new char[strlen(d_request_ril) + 1]) != NULL) {
-                strcpy(*ril, d_request_ril);
+            if ((*ril = new(std::nothrow) char[strlen(d_request_ril) + 1]) != NULL) {
+                vrpn_strncpynull(*ril, d_request_ril, strlen(d_request_ril) + 1);
             }
-            if ((*rol = new char[strlen(d_request_rol) + 1]) != NULL) {
-                strcpy(*rol, d_request_rol);
+            if ((*rol = new(std::nothrow) char[strlen(d_request_rol) + 1]) != NULL) {
+                vrpn_strncpynull(*rol, d_request_rol, strlen(d_request_rol) + 1);
             }
 
             // Delete and NULL the local storage pointers.
-            delete[] d_request_lil;
-            d_request_lil = NULL;
-            delete[] d_request_lol;
-            d_request_lol = NULL;
-            delete[] d_request_ril;
-            d_request_ril = NULL;
-            delete[] d_request_rol;
-            d_request_rol = NULL;
+            try {
+              delete[] d_request_lil;
+              d_request_lil = NULL;
+              delete[] d_request_lol;
+              d_request_lol = NULL;
+              delete[] d_request_ril;
+              d_request_ril = NULL;
+              delete[] d_request_rol;
+              d_request_rol = NULL;
+            } catch (...) {
+              fprintf(stderr, "vrpn_Imager_Stream_Shared_State::get_logfile_request(): delete failed\n");
+              return false;
+            }
         }
         d_new_log_request = false;
         return ret;
@@ -233,41 +249,61 @@ public:
         // delete file names, in case the logging thread hasn't had a chance to
         //  honor the request yet.
         if (d_request_lil) {
-            delete[] d_request_lil;
+            try {
+              delete[] d_request_lil;
+            } catch (...) {
+              fprintf(stderr, "vrpn_Imager_Stream_Shared_State::set_logfile_request(): delete failed\n");
+              return;
+            }
             d_request_lil = NULL;
         }
         if (d_request_lol) {
-            delete[] d_request_lol;
+            try {
+              delete[] d_request_lol;
+            } catch (...) {
+              fprintf(stderr, "vrpn_Imager_Stream_Shared_State::set_logfile_request(): delete failed\n");
+              return;
+            }
             d_request_lol = NULL;
         }
         if (d_request_ril) {
-            delete[] d_request_ril;
+            try {
+              delete[] d_request_ril;
+            } catch (...) {
+              fprintf(stderr, "vrpn_Imager_Stream_Shared_State::set_logfile_request(): delete failed\n");
+              return;
+            }
             d_request_ril = NULL;
         }
         if (d_request_rol) {
-            delete[] d_request_rol;
+            try {
+              delete[] d_request_rol;
+            } catch (...) {
+              fprintf(stderr, "vrpn_Imager_Stream_Shared_State::set_logfile_request(): delete failed\n");
+              return;
+            }
             d_request_rol = NULL;
         }
 
         // Allocate space for each string and then copy into it.
         if (lil != NULL) {
-            if ((d_request_lil = new char[strlen(lil) + 1]) != NULL) {
-                strcpy(d_request_lil, lil);
+            if ((d_request_lil = new(std::nothrow) char[strlen(lil) + 1]) != NULL) {
+                vrpn_strncpynull(d_request_lil, lil, strlen(lil) + 1);
             }
         }
         if (lol != NULL) {
-            if ((d_request_lol = new char[strlen(lol) + 1]) != NULL) {
-                strcpy(d_request_lol, lol);
+            if ((d_request_lol = new(std::nothrow) char[strlen(lol) + 1]) != NULL) {
+                vrpn_strncpynull(d_request_lol, lol, strlen(lol) + 1);
             }
         }
         if (ril != NULL) {
-            if ((d_request_ril = new char[strlen(ril) + 1]) != NULL) {
-                strcpy(d_request_ril, ril);
+            if ((d_request_ril = new(std::nothrow) char[strlen(ril) + 1]) != NULL) {
+                vrpn_strncpynull(d_request_ril, ril, strlen(ril) + 1);
             }
         }
         if (rol != NULL) {
-            if ((d_request_rol = new char[strlen(rol) + 1]) != NULL) {
-                strcpy(d_request_rol, rol);
+            if ((d_request_rol = new(std::nothrow) char[strlen(rol) + 1]) != NULL) {
+                vrpn_strncpynull(d_request_rol, rol, strlen(rol) + 1);
             }
         }
 
@@ -294,29 +330,29 @@ public:
             if (d_result_lil == NULL)
                 *lil = NULL;
             else {
-                if ((*lil = new char[strlen(d_result_lil) + 1]) != NULL) {
-                    strcpy(*lil, d_result_lil);
+                if ((*lil = new(std::nothrow) char[strlen(d_result_lil) + 1]) != NULL) {
+                    vrpn_strncpynull(*lil, d_result_lil, strlen(d_result_lil) + 1);
                 }
             }
             if (d_result_lol == NULL)
                 *lol = NULL;
             else {
-                if ((*lol = new char[strlen(d_result_lol) + 1]) != NULL) {
-                    strcpy(*lol, d_result_lol);
+                if ((*lol = new(std::nothrow) char[strlen(d_result_lol) + 1]) != NULL) {
+                    vrpn_strncpynull(*lol, d_result_lol, strlen(d_result_lol) + 1);
                 }
             }
             if (d_result_ril == NULL)
                 *ril = NULL;
             else {
-                if ((*ril = new char[strlen(d_result_ril) + 1]) != NULL) {
-                    strcpy(*ril, d_result_ril);
+                if ((*ril = new(std::nothrow) char[strlen(d_result_ril) + 1]) != NULL) {
+                    vrpn_strncpynull(*ril, d_result_ril, strlen(d_result_ril) + 1);
                 }
             }
             if (d_result_rol == NULL)
                 *rol = NULL;
             else {
-                if ((*rol = new char[strlen(d_result_rol) + 1]) != NULL) {
-                    strcpy(*rol, d_result_rol);
+                if ((*rol = new(std::nothrow) char[strlen(d_result_rol) + 1]) != NULL) {
+                    vrpn_strncpynull(*rol, d_result_rol, strlen(d_result_rol) + 1);
                 }
             }
 
@@ -332,34 +368,62 @@ public:
     {
         vrpn::SemaphoreGuard guard(d_sem);
 
-        if (d_result_lil) delete[] d_result_lil;
+        if (d_result_lil) {
+          try {
+            delete[] d_result_lil;
+          } catch (...) {
+            fprintf(stderr, "vrpn_Imager_Stream_Shared_State::set_logfile_result(): delete failed\n");
+            return;
+          }
+        }
         d_result_lil = NULL;
-        if (d_result_lol) delete[] d_result_lol;
+        if (d_result_lol) {
+          try {
+            delete[] d_result_lol;
+          } catch (...) {
+            fprintf(stderr, "vrpn_Imager_Stream_Shared_State::set_logfile_result(): delete failed\n");
+            return;
+          }
+        }
         d_result_lol = NULL;
-        if (d_result_ril) delete[] d_result_ril;
+        if (d_result_ril) {
+          try {
+            delete[] d_result_ril;
+          } catch (...) {
+            fprintf(stderr, "vrpn_Imager_Stream_Shared_State::set_logfile_result(): delete failed\n");
+            return;
+          }
+        }
         d_result_ril = NULL;
-        if (d_result_rol) delete[] d_result_rol;
+        if (d_result_rol) {
+          try {
+            delete[] d_result_rol;
+          } catch (...) {
+            fprintf(stderr, "vrpn_Imager_Stream_Shared_State::set_logfile_result(): delete failed\n");
+            return;
+          }
+        }
         d_result_rol = NULL;
 
         // Allocate space for each string and then copy into it.
         if (lil != NULL) {
-            if ((d_result_lil = new char[strlen(lil) + 1]) != NULL) {
-                strcpy(d_result_lil, lil);
+            if ((d_result_lil = new(std::nothrow) char[strlen(lil) + 1]) != NULL) {
+                vrpn_strncpynull(d_result_lil, lil, strlen(lil) + 1);
             }
         }
         if (lol != NULL) {
-            if ((d_result_lol = new char[strlen(lol) + 1]) != NULL) {
-                strcpy(d_result_lol, lol);
+            if ((d_result_lol = new(std::nothrow) char[strlen(lol) + 1]) != NULL) {
+                vrpn_strncpynull(d_result_lol, lol, strlen(lol) + 1);
             }
         }
         if (ril != NULL) {
-            if ((d_result_ril = new char[strlen(ril) + 1]) != NULL) {
-                strcpy(d_result_ril, ril);
+            if ((d_result_ril = new(std::nothrow) char[strlen(ril) + 1]) != NULL) {
+                vrpn_strncpynull(d_result_ril, ril, strlen(ril) + 1);
             }
         }
         if (rol != NULL) {
-            if ((d_result_rol = new char[strlen(rol) + 1]) != NULL) {
-                strcpy(d_result_rol, rol);
+            if ((d_result_rol = new(std::nothrow) char[strlen(rol) + 1]) != NULL) {
+                vrpn_strncpynull(d_result_rol, rol, strlen(rol) + 1);
             }
         }
 
@@ -380,25 +444,25 @@ public:
             *local_in = NULL;
         else {
             *local_in = new char[strlen(d_result_lil) + 1];
-            strcpy(*local_in, d_result_lil);
+            vrpn_strncpynull(*local_in, d_result_lil, strlen(d_result_lil) + 1);
         }
         if (d_result_lol == NULL)
             *local_out = NULL;
         else {
             *local_out = new char[strlen(d_result_lol) + 1];
-            strcpy(*local_out, d_result_lol);
+            vrpn_strncpynull(*local_out, d_result_lol, strlen(d_result_lol) + 1);
         }
         if (d_result_ril == NULL)
             *remote_in = NULL;
         else {
             *remote_in = new char[strlen(d_result_ril) + 1];
-            strcpy(*remote_in, d_result_ril);
+            vrpn_strncpynull(*remote_in, d_result_ril, strlen(d_result_ril) + 1);
         }
         if (d_result_rol == NULL)
             *remote_out = NULL;
         else {
             *remote_out = new char[strlen(d_result_rol) + 1];
-            strcpy(*remote_out, d_result_rol);
+            vrpn_strncpynull(*remote_out, d_result_rol, strlen(d_result_rol) + 1);
         }
     }
 

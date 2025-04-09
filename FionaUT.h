@@ -3,8 +3,8 @@
 //  FionaUT
 //
 //  Created by Hyun Joon Shin on 5/7/12.
-//  Further enhanced by Ross Tredinnick 2012-2014 University of Wisconsin - Madison
-//	Living Environments Laboratory
+//  Updated and work continued by Ross Tredinnick 2012-2019
+//  Living Environments Laboratory, Virtual Environments Groups - Wisconsin Institutes for Discovery
 //
 
 #ifndef FIONA_UT_H__
@@ -268,7 +268,8 @@ struct TextureBuffer
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 			}
 
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, texSize.w, texSize.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, texSize.w, texSize.h, 0, GL_RGBA, GL_FLOAT, data);
+			//glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, texSize.w, texSize.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 		}
 
 		if (mipLevels > 1)
@@ -323,11 +324,12 @@ struct TextureBuffer
 
 		glViewport(0, 0, texSize.w, texSize.h);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glEnable(GL_FRAMEBUFFER_SRGB);
+		//glEnable(GL_FRAMEBUFFER_SRGB);
 	}
 
 	void UnsetRenderSurface()
 	{
+		glDisable(GL_FRAMEBUFFER_SRGB);
 		glBindFramebuffer(GL_FRAMEBUFFER, fboId);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
@@ -388,7 +390,7 @@ typedef void (*FIONA_IDLE_FUNC)			(void);
 typedef void (*FIONA_FRAME_FUNC)		(float t);
 typedef void (*FIONA_TRACKER_FUNC)		(int i, const jvec3& p, const quat& o);
 typedef void (*FIONA_WAND_BUTTON_FUNC)	(int i, int s, int idx);
-typedef void (*FIONA_JOYSTIK_FUNC)		(int i, const jvec3& t);
+typedef void (*FIONA_JOYSTIK_FUNC)		(int i, const vec4& t);
 typedef void (*FIONA_CONTROLLER_FUNC)	(unsigned short, unsigned char, unsigned char, short, short, short, short);
 typedef void (*FIONA_CLEANUP_FUNC)		(int e);
 
@@ -433,7 +435,8 @@ struct FionaConfig
 		CAVE1_WIN8, CAVE2_WIN8, CAVE3_WIN8, CAVE4_WIN8, CAVE5_WIN8, CAVE6_WIN8, SLAVE, VUZIX, OCULUS, HDTV, 
 		UNITY_DL, UNITY_CAVE, UNITY_DSCVR, DEVLAB_WIN8, TEST_STEREO, VIVE, DEVLAB_DUALPIPE, DEVLAB_DUALPIPE_SLAVE, 
 		DEVLAB_DUALPIPE_ONEMACHINE, DEVLAB_DUALVIEW_DUALPIPE, DEVLAB_DUALVIEW_DUALPIPE_SLAVE, CAVE1_DUALPIPE, CAVE2_DUALPIPE,
-		CAVE3_DUALPIPE, CAVE4_DUALPIPE, CAVE5_DUALPIPE, CAVE6_DUALPIPE};
+		CAVE3_DUALPIPE, CAVE4_DUALPIPE, CAVE5_DUALPIPE, CAVE6_DUALPIPE, NEW_DEVLAB, NEW_DEVLAB2, CAVE1_SS, CAVE2_SS, CAVE3_SS, CAVE4_SS, CAVE5_SS, CAVE6_SS,
+	CAVE_NEW_DOOR, CAVE_NEW_RIGHT, CAVE_NEW_FRONT, CAVE_NEW_LEFT, CAVE_NEW_FLOOR, CAVE_NEW_CEILING};
 
 	APP_TYPE				appType;
 
@@ -584,6 +587,8 @@ struct FionaConfig
 	bool					fboSameAsWindow;
 	bool					layeredStereo;
 	bool					borderlessWindow;
+	bool					singlePassStereo;
+	float					oculusResMultiplier;
 #ifdef ENABLE_OCULUS
 #ifdef ENABLE_DK2
 	ovrSwapTextureSet *		pTextureSet;
@@ -611,8 +616,10 @@ struct FionaConfig
 #endif
 	glm::mat4				mvRight;
 	glm::mat4				mvLeft;
+	glm::mat4				mvCenter;
 	glm::mat4				projRight;
 	glm::mat4				projLeft;
+	glm::mat4				projCenter;
 
 #ifdef ENABLE_OCULUS
 #ifdef ENABLE_DK2 
@@ -763,6 +770,7 @@ extern jvec3					fionaCurEyePos;
 extern WIN					fionaActiveWindow;
 extern CTX					fionaActiveContext;
 extern int					fionaRenderCycleCount;
+extern bool					fionaRenderCycleCenter;
 extern bool					fionaRenderCycleLeft;
 extern bool					fionaRenderCycleRight;
 extern bool					fionaDone; 
@@ -803,6 +811,8 @@ extern void		 _FionaUTMouseMove		(WIN win, int x, int y);
 extern void		 _FionaUTMouseDrag		(WIN win, int x, int y);
 
 extern void		 _FionaUTDisplay		(WIN win, CTX cntx);
+extern void		 _FionaUTDisplaySecondWindow (WIN win, CTX cntx);
+
 extern void		 _FionaUTReshape		(WIN win, int w, int h);
 extern void		 _FionaUTIdle			(void);
 
@@ -812,7 +822,7 @@ extern void		 _FionaUTIdle			(void);
 extern void		 _FionaUTFrame			(void);
 extern void		 _FionaUTTracker		(int i, const jvec3& p, const quat& q);
 extern void		 _FionaUTWandButton		(int i, int b, int idx=0);
-extern void		 _FionaUTJoystick		(int i, const jvec3& p);
+extern void		 _FionaUTJoystick		(int i, const vec4& p);
 
 // Utility functions accesed by internal functions
 extern int		 _FionaUTFindWindow		(WIN win);
@@ -863,7 +873,11 @@ inline bool _FionaUTIsCAVEMachine(void)
 			fionaConf.appType == FionaConfig::CAVE1_WIN8 || fionaConf.appType == FionaConfig::CAVE2_WIN8 || fionaConf.appType == FionaConfig::CAVE3_WIN8 || 
 			fionaConf.appType == FionaConfig::CAVE4_WIN8 || fionaConf.appType == FionaConfig::CAVE5_WIN8 || fionaConf.appType == FionaConfig::CAVE6_WIN8 ||
 			fionaConf.appType == FionaConfig::CAVE1 || fionaConf.appType == FionaConfig::CAVE2 || fionaConf.appType == FionaConfig::CAVE3 ||
-			fionaConf.appType == FionaConfig::CAVE4 || fionaConf.appType == FionaConfig::CAVE5 || fionaConf.appType == FionaConfig::CAVE6);
+			fionaConf.appType == FionaConfig::CAVE4 || fionaConf.appType == FionaConfig::CAVE5 || fionaConf.appType == FionaConfig::CAVE6 ||
+			fionaConf.appType == FionaConfig::CAVE1_SS || fionaConf.appType == FionaConfig::CAVE2_SS || fionaConf.appType == FionaConfig::CAVE3_SS ||
+			fionaConf.appType == FionaConfig::CAVE4_SS || fionaConf.appType == FionaConfig::CAVE5_SS || fionaConf.appType == FionaConfig::CAVE6_SS || 
+			fionaConf.appType == FionaConfig::CAVE_NEW_DOOR || fionaConf.appType == FionaConfig::CAVE_NEW_FRONT || fionaConf.appType == FionaConfig::CAVE_NEW_RIGHT ||
+			fionaConf.appType == FionaConfig::CAVE_NEW_LEFT || fionaConf.appType == FionaConfig::CAVE_NEW_CEILING || fionaConf.appType == FionaConfig::CAVE_NEW_FLOOR);
 }
 
 // Synchronization socket information

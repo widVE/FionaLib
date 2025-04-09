@@ -27,6 +27,8 @@
 #include <glm/gtx/quaternion.hpp>
 #include "glm/gtx/matrix_interpolation.hpp"
 
+#include "Structs.h"
+
 #ifdef ENABLE_VIVE
 #include "openvr.h"
 #endif
@@ -62,10 +64,11 @@ public:
 	virtual void	passiveMouseMoveCallback(int x, int y) {}
 	virtual void	onExit(void) {}
 	virtual void	updateController(unsigned short wB, unsigned char bLT, unsigned char bRT, short sTLX, short sTLY, short sTRX, short sTRY);
-	virtual void	updateJoystick(const jvec3& v);
+	virtual void	updateJoystick(const vec4& v);
 	virtual void	updateLeap(void) {}
 	virtual void	updateWand(const jvec3& p, const quat& q);
 	virtual void	wallRender(void) {}
+	virtual void	updateVolumeState(VolumeData const& data) {}
 	
 	static const float cameraMovedThresh;
 
@@ -79,6 +82,7 @@ public:
 	void			getSecondTrackerWorldSpace(jvec3 &vPos) const;
 	void			getWandWorldSpace(jvec3 &vPos, bool noRot=false) const;
 	void			getWandDirWorldSpace(jvec3 &vDir, bool zUp=true, float fWiiFit=0.f) const;
+	const jvec3 &	getWorldPos(jvec3 trackedPos) const { return camPos + camOri.rot(trackedPos); }
 
 	const jvec3 &	getWandPos(void) const { return wandPos; }
 	void			getWandPosWorld(jvec3 &vPos) const;

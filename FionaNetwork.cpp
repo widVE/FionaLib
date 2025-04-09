@@ -67,22 +67,22 @@ void CaveMaster::ListenForSlaves(void)
 			
 			printf("Dual View IP: %s\n", sIP);
 			//compare this IP to the 3 dual view machines
-			if(strcmp(sIP, "192.168.4.131")==0)
+			if(strcmp(sIP, "10.129.24.131")==0)
 			{
 				printf("got connection from dual view machine!\n");
 				connections[i]->firstView = false;
 			} 
-			else if(strcmp(sIP, "192.168.4.132")==0)
+			else if(strcmp(sIP, "10.129.24.132")==0)
 			{
 				printf("got connection from dual view machine!\n");
 				connections[i]->firstView = false;
 			}
-			else if(strcmp(sIP, "192.168.4.133")==0)
+			else if(strcmp(sIP, "10.129.24.133")==0)
 			{
 				printf("got connection from dual view machine!\n");
 				connections[i]->firstView = false;
 			}
-			else if(strcmp(sIP, "192.168.4.141")==0)	//dev lab 2
+			else if(strcmp(sIP, "10.129.24.141")==0)	//dev lab 2
 			{
 				printf("got connection from dual view machine!\n");
 				connections[i]->firstView = false;
@@ -174,9 +174,9 @@ void CaveMaster::WakeupSlaves(void)
 
 //////////////////////////////CAVE SLAVE//////////////////////////////////
 
-//char *CaveSlave::sMasterIP = "192.168.4.140";
+//char *CaveSlave::sMasterIP = "10.129.24.140";
 //char *CaveSlave::sMasterIP = "10.129.29.225";
-//char *CaveSlave::sDualMasterIP = "192.168.4.130";
+//char *CaveSlave::sDualMasterIP = "10.129.24.130";
 
 void CaveSlave::ConnectToMaster(void)
 {
@@ -294,12 +294,13 @@ void UpdateTrackerPacket::SetPayloadFromBuffer(char * buf, int size)
 	memcpy((void*)&t, buf, size);
 }
 
-void UpdateJoystickPacket::SetPayload(short wandIdx, float fX, float fY, float fZ)
+void UpdateJoystickPacket::SetPayload(short wandIdx, float fX, float fY, float fZ, float fW)
 {
 	w.wandIdx = wandIdx;
 	w.x = fX;
 	w.y = fY;
 	w.z = fZ;
+	w.w = fW;
 }
 
 void UpdateCameraPacket::SetPayload(const jvec3 &v, const quat &q)
@@ -555,6 +556,16 @@ void UpdateControllerData::SetPayloadFromBuffer(char * buf, int size)
 	memcpy(&w, (void*)buf, size);
 }
 
+void UpdateVolumePacket::SetPayload(VolumeData const& data)
+{
+	w = data;
+}
+
+void UpdateVolumePacket::SetPayloadFromBuffer(char * buf, int size)
+{
+	memcpy((void*)&w, (void*)buf, size);
+}
+
 //*******************************************************
 //
 //    FionaUT interface functions
@@ -589,12 +600,12 @@ void _FionaUTSyncInit(void)
 	}
 }
 
-void _FionaUTSyncSendJoystick(int i, const jvec3& p)
+void _FionaUTSyncSendJoystick(int i, const vec4& p)
 {
 	UpdateJoystickPacket *packet = new UpdateJoystickPacket(BasePacket::UPDATE_JOYSTICK);
-	packet->SetPayload(i, p.x, p.z, p.y);
+	packet->SetPayload(i, p.x, p.z, p.y, p.h);
 #if DEBUG_PRINT > 1
-	printf("Adding joystick packet\n");
+	printf("Adding joystick packet %f %f %f %f\n", p.x, p.y, p.z, p.h);
 #endif
 	fionaPackets.push_back(packet);
 }
@@ -673,6 +684,13 @@ void _FionaUTSyncSendFileIndex(int fileIndex, int bufferIndex)
 	UpdateTimeVaryingData *p = new UpdateTimeVaryingData(BasePacket::UPDATE_TIME_VARYING_FILE);
 	p->SetPayload(fileIndex, bufferIndex);
 	fionaPackets.push_back(p);
+}
+
+void _FionaUTSyncVolume(VolumeData const& data)
+{
+	UpdateVolumePacket *pUpdateMatrix = new UpdateVolumePacket(BasePacket::UPDATE_VOLUME);
+	pUpdateMatrix->SetPayload(data);
+	fionaPackets.push_back(pUpdateMatrix);
 }
 
 #ifndef LINUX_BUILD
@@ -879,8 +897,13 @@ void _FionaUTPrintPacketType(int type, int sz)
 			break;
 		case BasePacket::UPDATE_MATRIX:
 			printf("Received packet head UPDATE_MATRIX, size %d\n", sz);
+			break;
 		case BasePacket::UPDATE_CONTROLLER:
 			printf("Received packet header UPDATE_CONTROLLER, size %d\n", sz);
+			break;
+		case BasePacket::UPDATE_VOLUME:
+			printf("Received packet header UPDATE_VOLUME, size %d\n", sz);
+			break;
 		default:
 			printf("Received unknown packet header\n");
 	}
@@ -910,7 +933,8 @@ char* _FionaUTSyncProcessPacket(int type, int sz, char* bufPtr)
 			UpdateJoystickPacket p(BasePacket::UPDATE_JOYSTICK);
 			p.SetPayloadFromBuffer(ptr, sz);
 			const JoystickData& data = (JoystickData&)p.GetData();
-			_FionaUTJoystick(data.wandIdx, jvec3(data.x,data.z,data.y));
+			//printf("Receiving: %f %f %f %f\n", data.x, data.y, data.z, data.w);
+			_FionaUTJoystick(data.wandIdx, vec4(data.x,data.z,data.y, data.w));
 			 break;
 		}
 		case BasePacket::UPDATE_WANDBUTTONS:
@@ -1019,6 +1043,7 @@ char* _FionaUTSyncProcessPacket(int type, int sz, char* bufPtr)
 #ifndef LINUX_BUILD
 			_FionaUTJoypad(d.wButtons, d.bLeftTrigger, d.bRightTrigger, d.sThumbLX, d.sThumbLY, d.sThumbRX, d.sThumbRY);
 #endif
+			break;
 		}
 		case BasePacket::UPDATE_CAMERA:
 		{
@@ -1027,6 +1052,7 @@ char* _FionaUTSyncProcessPacket(int type, int sz, char* bufPtr)
 			const CameraData& data = (CameraData&)p.GetData();
 			if(scene != 0)
 			{
+				//printf("Updating camera\n");
 				scene->setCamera(data.pos, data.rot);
 			}
 			break;
@@ -1044,6 +1070,13 @@ char* _FionaUTSyncProcessPacket(int type, int sz, char* bufPtr)
 			printf("Received Leap Data\n");
 #endif
 #endif
+			break;
+		}
+		case BasePacket::UPDATE_VOLUME:
+		{
+			UpdateVolumePacket p(BasePacket::UPDATE_VOLUME);
+			p.SetPayloadFromBuffer(ptr, sz);
+			scene->updateVolumeState(p.GetData());
 			break;
 		}
 		case BasePacket::TEST:
@@ -1156,6 +1189,14 @@ char* _FionaUTSyncProcessMasterSlavePacket(int type, int sz, char* bufPtr)
 		case BasePacket::UPDATE_CONTROLLER:
 		{
 			UpdateControllerData *p = new UpdateControllerData();
+			p->SetPayloadFromBuffer(ptr, sz);
+			fionaPackets.push_back(p);
+			break;
+		}
+
+		case BasePacket::UPDATE_VOLUME:
+		{
+			UpdateVolumePacket *p = new UpdateVolumePacket();
 			p->SetPayloadFromBuffer(ptr, sz);
 			fionaPackets.push_back(p);
 			break;
@@ -1276,3 +1317,5 @@ void _FionaUTSyncMasterSlaveSync(void)
 	}
 	//delete[] buf;
 }
+
+

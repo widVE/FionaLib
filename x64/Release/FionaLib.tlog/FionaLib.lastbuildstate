@@ -1,2 +1,2 @@
-#TargetFrameworkVersion=v4.0:PlatformToolSet=v120:EnableManagedIncrementalBuild=false:VCToolArchitecture=Native32Bit
-Release|x64|S:\apps\dual_test\FionaLib\|
+PlatformToolSet=v143:VCToolArchitecture=Native64Bit:VCToolsVersion=14.43.34808:TargetPlatformVersion=10.0.22621.0:
+Release|x64|S:\projects6\Tredinnick-CaveShared\apps\special_dual_test\FionaVolume\|

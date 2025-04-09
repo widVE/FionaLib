@@ -6,6 +6,7 @@
 #include "VRPN/vrpn_Button.h"
 
 #include <stdio.h>
+#include <vector>
 
 class FionaUTVRPN
 {

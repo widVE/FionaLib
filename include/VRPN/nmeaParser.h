@@ -5,6 +5,7 @@
 
 #ifndef __NMEAPARSER_HPP
 #define __NMEAPARSER_HPP
+#include "vrpn_Shared.h"
 
 #if 1
 
@@ -198,7 +199,7 @@ class NMEAParser
 
   void setStartSentence(const char *sentence)
   {
-	  strcpy(startSentence, sentence);
+    vrpn_strcpy(startSentence, sentence);
   }
 
   void getData (NMEAData& data) const
@@ -255,7 +256,7 @@ protected:
   NMEAData* m_data;
 
   // the sentence that marks the beginning of the set of packets
-  char startSentence[16];
+  char startSentence[MAX_SENTENCE_SIZE];
 
   // Needed for parsing the GSV sentence.
   int m_lastSentenceNumber;// Which sentence number was the last one?

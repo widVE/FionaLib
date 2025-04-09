@@ -1,4 +1,5 @@
 #ifndef VRPN_BUTTON_H
+#define VRPN_BUTTON_H
 #include <stddef.h> // for NULL
 
 #include "vrpn_BaseClass.h" // for vrpn_Callback_List, etc
@@ -18,8 +19,8 @@ const int VRPN_BUTTON_BUF_SIZE = 256;
 const int vrpn_BUTTON_MOMENTARY = 10;
 const int vrpn_BUTTON_TOGGLE_OFF = 20;
 const int vrpn_BUTTON_TOGGLE_ON = 21;
-const int vrpn_BUTTON_LIGHT_OFF = 30;
-const int vrpn_BUTTON_LIGHT_ON = 31;
+//const int vrpn_BUTTON_LIGHT_OFF = 30;
+//const int vrpn_BUTTON_LIGHT_ON = 31;
 const int vrpn_ALL_ID = -99;
 
 /** This is the base class for both the client and server for a button
@@ -292,5 +293,4 @@ protected:
     handle_states_message(void *userdata, vrpn_HANDLERPARAM p);
 };
 
-#define VRPN_BUTTON_H
 #endif

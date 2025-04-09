@@ -8,10 +8,11 @@
 
 class vrpn_MainloopContainer;
 
-const int VRPN_GSO_MAX_NDI_POLARIS_RIGIDBODIES =
-    20; // FIXME find out from the NDI specs if there is a maximum;
+/// @todo find out from the NDI specs if there is a maximum;
+const int VRPN_GSO_MAX_NDI_POLARIS_RIGIDBODIES = 20; 
 
 class VRPN_API vrpn_TAF_axis;
+class VRPN_API vrpn_IMU_Axis_Params;
 class VRPN_API vrpn_PA_axis;
 
 class vrpn_Generic_Server_Object {
@@ -40,6 +41,7 @@ protected:
 
     // Helper functions for the functions below
     int get_AFline(char *line, vrpn_TAF_axis *axis);
+    int get_IMU_Param_Line(char *line, vrpn_IMU_Axis_Params *axis);
     int get_poser_axis_line(FILE *config_file, const char *axis_name,
                             vrpn_PA_axis *axis, vrpn_float64 *min,
                             vrpn_float64 *max);
@@ -78,6 +80,7 @@ protected:
     int setup_Tracker_Flock_Parallel(char *&pch, char *line,
                                      FILE * /*config_file*/);
     int setup_Tracker_NULL(char *&pch, char *line, FILE * /*config_file*/);
+    int setup_Tracker_Spin(char *&pch, char *line, FILE * /*config_file*/);
     int setup_Button_Python(char *&pch, char *line, FILE * /*config_file*/);
     int setup_Button_SerialMouse(char *&pch, char *line,
                                  FILE * /*config_file*/);
@@ -158,6 +161,18 @@ protected:
     int setup_YEI_3Space_Sensor(char *&pch, char *line, FILE *config_file);
     int setup_YEI_3Space_Sensor_Wireless(char *&pch, char *line, FILE *config_file);
     int setup_Tracker_ThalmicLabsMyo(char * &pch, char *line, FILE * config_file);
+    int setup_Oculus_DK1(char *&pch, char *line, FILE *config_file);
+    int setup_Oculus_DK2_LEDs(char *&pch, char *line, FILE *config_file);
+    int setup_Oculus_DK2_inertial(char *&pch, char *line, FILE *config_file);
+    int setup_IMU_Magnetometer(char *&pch, char *line, FILE *config_file);
+    int setup_IMU_SimpleCombiner(char *&pch, char *line, FILE *config_file);
+    int setup_nVidia_shield_USB(char *&pch, char *line, FILE *config_file);
+    int setup_nVidia_shield_stealth_USB(char *&pch, char *line, FILE *config_file);
+    int setup_Adafruit_10DOF(char *&pch, char *line, FILE *config_file);
+    int setup_OzzMaker_BerryIMU(char *&pch, char *line, FILE *config_file);
+    int setup_Laputa(char *&pch, char *line, FILE *config_file);
+    int setup_Vality_vGlass(char *&pch, char *line, FILE *config_file);
+    int setup_Microsoft_Xbox_360(char*& pch, char* line, FILE *config_file);
 
     template <typename T>
     int templated_setup_device_name_only(char *&pch, char *line, FILE *);

@@ -8,6 +8,8 @@
 #include "leap/Leap.h"
 #endif
 
+#include "Structs.h"
+
 class CaveMaster
 {
 	public:
@@ -46,6 +48,7 @@ struct JoystickData
 	float x;			//4 bytes
 	float y;			//4 bytes
 	float z;			//4 bytes
+	float w;			//4 bytes
 };
 
 struct WandButtonData
@@ -228,6 +231,7 @@ class BasePacket
 			UPDATE_FRAME_NUMBER,
 			UPDATE_MATRIX,
 			UPDATE_CONTROLLER,
+			UPDATE_VOLUME,
 			TEST,
 			NUM_COMMAND_TYPES
 		} commandType_t;
@@ -346,7 +350,7 @@ public:
 #ifdef LINUX_BUILD
 	static const unsigned int FIONA_NETWORK_BUFFER_SIZE = 65536;
 #else
-	static const unsigned int FIONA_NETWORK_BUFFER_SIZE = 262144;
+	static const unsigned int FIONA_NETWORK_BUFFER_SIZE = 65536;
 #endif
 	char masterBuffer[FIONA_NETWORK_BUFFER_SIZE];
 	char slaveBuffer[FIONA_NETWORK_BUFFER_SIZE];
@@ -366,7 +370,7 @@ public:
 	virtual ~UpdateJoystickPacket() {}
 
 	virtual void *			GetPayload(void)			{ return (void*)&w; }
-	void					SetPayload(short wandIdx, float fX, float fY, float fZ);
+	void					SetPayload(short wandIdx, float fX, float fY, float fZ, float fW);
 	void					SetPayloadFromBuffer(char * buf, int size);
 	const JoystickData&		GetData(void) const { return w; }
 
@@ -592,6 +596,21 @@ protected:
 	ControllerPacket w;
 };
 
+class UpdateVolumePacket : public BasePacket
+{
+public:
+	UpdateVolumePacket(unsigned int commandType = 0) : BasePacket(commandType, EVENT_DRIVEN) { header.size = sizeof(w); }
+	virtual ~UpdateVolumePacket() {}
+
+	virtual void *			GetPayload(void) { return (void*)&w; }
+	void					SetPayload(VolumeData const& d);
+	void					SetPayloadFromBuffer(char * buf, int size);
+	const VolumeData&		GetData(void) const { return w; }
+
+protected:
+	VolumeData w;
+};
+
 
 #include "FionaUT.h"
 
@@ -606,7 +625,7 @@ protected:
 extern std::vector<BasePacket*> fionaPackets;
 
 extern	void _FionaUTSyncInit(void);
-extern	void _FionaUTSyncSendJoystick(int i, const jvec3& p);
+extern	void _FionaUTSyncSendJoystick(int i, const vec4& p);
 extern  void _FionaUTSyncSendCamera(const jvec3 &p, const quat &r);
 extern	void _FionaUTSyncSendKeyboard(int key, int mod);
 extern	void _FionaUTSyncSendWandButton(int b, int s, short w);
@@ -623,6 +642,7 @@ extern	int  _FionaUTSyncGetTotalSize(unsigned char viewType);
 extern	void _FionaUTSyncPackPackets(char* buf, int sz, bool firstView);
 extern	void _FionaUTSyncClearPackets(void);
 extern  void _FionaUTSyncSendMatrix(unsigned int index, float *p, float *v);
+extern	void _FionaUTSyncVolume(VolumeData const& data);
 
 // Sync functions called within _FionaUTFrame
 extern	void _FionaUTSyncMasterSync(void);

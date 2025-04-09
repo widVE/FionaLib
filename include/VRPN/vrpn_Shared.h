@@ -9,11 +9,17 @@
 #endif
 #endif
 
+// Definitions needed by several included files.
+#define VRPN_PI (3.14159265358979323846)
+#define VRPN_INCHES_TO_METERS (2.54/100.0)
+#define VRPN_DEGREES_TO_RADIANS (VRPN_PI/180.0)
+
 #include "vrpn_Configure.h" // for VRPN_API
 #include "vrpn_Types.h"     // for vrpn_int32, vrpn_float64, etc
 #include "vrpn_Thread.h"
-#include <string.h>         // for memcpy()
+#include <string.h>         // for memcpy(), strncpy()
 #include <stdio.h>          // for fprintf()
+#include <new>              // for new(std::nothrow)
 
 #if defined(__ANDROID__)
 #include <bitset>
@@ -39,12 +45,13 @@
 #if defined(_WIN32) &&                                                         \
     (!defined(__CYGWIN__) || defined(VRPN_CYGWIN_USES_WINSOCK_SOCKETS))
 #define VRPN_USE_WINSOCK_SOCKETS
+#define vrpn_SOCKET SOCKET
 #endif
 
 #ifndef VRPN_USE_WINSOCK_SOCKETS
 // On Win32, this constant is defined as ~0 (sockets are unsigned ints)
 #define INVALID_SOCKET -1
-#define SOCKET int
+#define vrpn_SOCKET int
 #endif
 
 #if !(defined(_WIN32) && defined(VRPN_USE_WINSOCK_SOCKETS))
@@ -92,6 +99,9 @@
 // manner.  Otherwise, we just use the system call.
 #ifndef VRPN_USE_STD_CHRONO
   #define vrpn_gettimeofday gettimeofday
+#else
+  extern "C" VRPN_API int vrpn_gettimeofday(struct timeval *tp,
+                                            void *tzp = NULL);
 #endif
 #else // winsock sockets
 
@@ -121,7 +131,7 @@
 // Whether or not we export gettimeofday, we declare the
 // vrpn_gettimeofday() function on Windows.
 extern "C" VRPN_API int vrpn_gettimeofday(struct timeval *tp,
-                                          struct timezone *tzp);
+                                          void *tzp = NULL);
 
 // If compiling under Cygnus Solutions Cygwin then these get defined by
 // including sys/time.h.  So, we will manually define only for _WIN32
@@ -129,17 +139,7 @@ extern "C" VRPN_API int vrpn_gettimeofday(struct timeval *tp,
 // so that application code can get at it.  All VRPN routines should be
 // calling vrpn_gettimeofday() directly.
 
-#if defined(VRPN_EXPORT_GETTIMEOFDAY) && !defined(_STRUCT_TIMEZONE) &&         \
-    !defined(_TIMEZONE_DEFINED)
-#define _TIMEZONE_DEFINED
-/* from HP-UX */
-struct timezone {
-    int tz_minuteswest; /* minutes west of Greenwich */
-    int tz_dsttime;     /* type of dst correction */
-};
-#endif
-#if defined(VRPN_EXPORT_GETTIMEOFDAY) && !defined(_STRUCT_TIMEZONE)
-#define _STRUCT_TIMEZONE
+#if defined(VRPN_EXPORT_GETTIMEOFDAY)
 
 // manually define this too.  _WIN32 sans cygwin doesn't have gettimeofday
 #define gettimeofday vrpn_gettimeofday
@@ -503,3 +503,159 @@ inline int vrpn_unbuffer(ByteT **input, T *lvalue)
 // Returns true if tests work and false if they do not.
 extern bool vrpn_test_pack_unpack(void);
 
+/// Version of strncpy that ensures the resulting string is alyways NULL
+/// terminated.  It also only writes up to the terminating character and does
+/// not fill the rest of the string with 0.
+/// Use vrpn_strcpy() instead if this when writing to a fixed-length buffer.
+inline char *vrpn_strncpynull(char* dst, const char* src, size_t size)
+{
+    if (size > 0) {
+        size_t i;
+        for (i = 0; i < size - 1 && src[i]; i++) {
+            dst[i] = src[i];
+        }
+        dst[i] = '\0';
+    }
+    return dst;
+}
+
+/// Null-terminated-string copy function that both guarantees not to overrun
+/// the buffer and guarantees that the last character copied is a NULL terminator
+/// character.  Infers the size of the output buffer by template magic.
+/// See https://randomascii.wordpress.com/2013/04/03/stop-using-strncpy-already/
+/// for a description of how this works.
+
+template <size_t charCount> void vrpn_strcpy(char (&to)[charCount], const char* pSrc)
+{
+  // Copy the string - don't copy too many bytes.
+#ifdef _WIN32
+  strncpy_s(to, pSrc, charCount);
+#else
+  strncpy(to, pSrc, charCount - 1);
+#endif
+  // Ensure null-termination.
+  to[charCount - 1] = 0;
+}
+
+// This is a replacement for std::vector that implements the subset of
+// features needed for the VRPN objects that use it.
+// We can't use std::vector because:
+//  (1) We need to continue to support compilers from before it
+//      was defined.
+//  (2) Phantom force-feedback drivers include <vector.h>, and the same
+//      code that uses it cannot include <vector>; they are link-time
+//      incompatible.
+// We call this structure vrpn_vector rather than vrpn::vector to avoid
+// having an application end up using it by mistake when they mean
+// std::vector.
+
+template <class T> class vrpn_vector {
+public:
+  typedef size_t size_type;
+  typedef T* iterator;
+  typedef const T* const_iterator;
+  vrpn_vector() : m_size(0), m_data(0), m_allocated(0) {};
+  vrpn_vector(size_type s) : m_size(0), m_data(0), m_allocated(0) {
+    m_data = new T[s];
+    m_size = m_allocated = s;
+  }
+  vrpn_vector( const vrpn_vector &from )
+  : m_size(from.size()), m_data(0), m_allocated(from.size()) {
+    m_data = new T[m_size];
+    for (size_t i = 0; i < m_size; i++) {
+      m_data[i] = from.m_data[i];
+    }
+  }
+  template< class InputIt >
+  vrpn_vector( InputIt first, InputIt last ) : m_size(0), m_data(0), m_allocated(0) {
+    for (InputIt it = first; it != last; ++it) {
+      push_back(*it);
+    }
+  }
+  ~vrpn_vector() {
+    delete [] m_data;
+    m_size = m_allocated = 0;
+  }
+  vrpn_vector &operator =(const vrpn_vector& from)
+  {
+    delete[] m_data;
+    m_size = m_allocated = from.size();
+    m_data = new T[m_size];
+    for (size_t i = 0; i < m_size; i++) {
+      m_data[i] = from.m_data[i];
+    }
+    return *this;
+  }
+  T* data() { return m_data; }
+  size_type size() const { return m_size; }
+  bool empty() const { return m_size == 0; }
+  void resize(size_type s) {
+    // If we already have enough allocated space, set the size
+    // and leave the allocated size alone.
+    if (s <= m_allocated) {
+      m_size = s;
+    } else {
+      // We do not have enough space, so we need to allocate a new buffer
+      // and then copy the old buffer and then delete the original buffer.
+      T* newData = new T[s];
+      for (size_t i = 0; i < m_size; i++) {
+        newData[i] = m_data[i];
+      }
+      delete [] m_data;
+      m_data = newData;
+      m_size = m_allocated = s;
+    }
+  }
+  void push_back (const T& val) {
+    resize(m_size + 1);
+    m_data[m_size-1] = val;
+  }
+  T& front() {
+    return m_data[0];
+  }
+  T& back() {
+    return m_data[m_size-1];
+  }
+  T& operator[]( size_type pos ) {
+    return m_data[pos];
+  }
+  const T& operator[]( size_type pos ) const {
+    return m_data[pos];
+  }
+  void assign( size_type count, const T& value ) {
+    resize(count);
+    for (size_type i = 0; i < size(); i++) {
+      m_data[i] = value;
+    }
+  }
+  void clear() { m_size = 0; }
+  template< class InputIt >
+  void assign( InputIt first, InputIt last ) {
+    clear();
+    for (InputIt it = first; it != last; it++) {
+      push_back(*it);
+    }
+  }
+  iterator begin() { return m_data; }
+  const_iterator begin() const { return m_data; }
+  iterator end() {
+    if (m_size != 0) {
+      return &m_data[m_size];
+    } else {
+      return 0;
+    }
+  }
+  const_iterator end() const {
+    if (m_size != 0) {
+      return &m_data[m_size];
+    } else {
+      return 0;
+    }
+  }
+private:
+  size_type m_size, m_allocated;
+  T* m_data;
+};
+
+// Returns true if tests work and false if they do not.
+extern bool vrpn_test_vrpn_vector(void);

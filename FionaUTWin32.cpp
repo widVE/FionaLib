@@ -197,7 +197,7 @@ static void __FionaUTCreateWindowCB(HWND hwnd)
 	// End of hack
 	if(wglewIsSupported("WGL_ARB_create_context"))
 	{
-		if(fionaConf.twoWindows && _FionaUTIsCAVEMachine())
+		if(fionaConf.twoWindows)// && _FionaUTIsCAVEMachine())
 		{
 			info[i].hrc = hRC = wglCreateContext( hDC );
 			if(info[i].hrc)
@@ -241,7 +241,7 @@ static void __FionaUTCreateWindowCB(HWND hwnd)
 		}
 		else // We have shared RC and new RC.. we need to set them to share lists
 		{
-			if (!fionaConf.twoWindows)
+			//if (!fionaConf.twoWindows)
 			{
 				wglShareLists(sharedRC, hRC);
 			}
@@ -608,17 +608,20 @@ static void __FionaUTCreateWindowCB(HWND hwnd)
 		}
 	}
 	
-	int vidMemSize = __FionaUTGetVideoMemorySizeBytes(true, 0);
-	int dedicatedSize = __FionaUTGetVideoMemorySizeBytes(false, GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX);
-	printf("Total Video memory: %d MB\n", vidMemSize/1024);
-	printf("Dedicated Video memory: %d MB\n", dedicatedSize/1024);
+	if (fionaWinConf[0].window == hwnd)
+	{
+		int vidMemSize = __FionaUTGetVideoMemorySizeBytes(true, 0);
+		int dedicatedSize = __FionaUTGetVideoMemorySizeBytes(false, GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX);
+		printf("Total Video memory: %d MB\n", vidMemSize / 1024);
+		printf("Dedicated Video memory: %d MB\n", dedicatedSize / 1024);
 
-	const GLubyte *glVersionString = glGetString(GL_VERSION);
-	int glVersion[2] = {0, 0};
-	glGetIntegerv(GL_MAJOR_VERSION, &glVersion[0]);
-	glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]);
+		const GLubyte *glVersionString = glGetString(GL_VERSION);
+		int glVersion[2] = { 0, 0 };
+		glGetIntegerv(GL_MAJOR_VERSION, &glVersion[0]);
+		glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]);
 
-	printf("Fiona is Using OpenGL version: %d.%d!\n", glVersion[0], glVersion[1]);
+		printf("Fiona is Using OpenGL version: %d.%d!\n", glVersion[0], glVersion[1]);
+	}
 
 	//wglMakeCurrent(NULL, NULL);
 	_FionaUTCreated		(hwnd);
@@ -628,29 +631,31 @@ DWORD WINAPI __FionaRenderWallThreadFunc(LPVOID dataPtr)
 {
 	bool inited = false;
 
-	LARGE_INTEGER last, cur;
+	/*LARGE_INTEGER last, cur;
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
-	float step = freq.QuadPart/(fionaConf.framerate+1);
+	float step = freq.QuadPart/(fionaConf.framerate+1);*/
 
 	while(!fionaDone)
 	{
-		QueryPerformanceCounter(&cur);
+		//QueryPerformanceCounter(&cur);
 
-		if( !inited || cur.QuadPart-last.QuadPart>=step )
+		//if( !inited || cur.QuadPart-last.QuadPart>=step )
 		{
-			last = cur;
+			//last = cur;
 			if(!inited)
 			{
 				printf("CREATING second window!!\n");
 
-				if (fionaConf.appType == FionaConfig::CAVE1_DUALPIPE || fionaConf.appType == FionaConfig::CAVE2_DUALPIPE || fionaConf.appType == FionaConfig::CAVE3_DUALPIPE || 
-					fionaConf.appType == FionaConfig::CAVE4_DUALPIPE || fionaConf.appType == FionaConfig::CAVE5_DUALPIPE || fionaConf.appType == FionaConfig::CAVE6_DUALPIPE)
+				//if (fionaConf.appType == FionaConfig::CAVE1_DUALPIPE || fionaConf.appType == FionaConfig::CAVE2_DUALPIPE || fionaConf.appType == FionaConfig::CAVE3_DUALPIPE || 
+				//	fionaConf.appType == FionaConfig::CAVE4_DUALPIPE || fionaConf.appType == FionaConfig::CAVE5_DUALPIPE || fionaConf.appType == FionaConfig::CAVE6_DUALPIPE)
 				{
 					printf("Making 2nd Window!!!\n");
-					fionaWinConf[1].winw=1920;
-					fionaWinConf[1].winh=1920;
-					HWND hWnd2 = CreateWindow(_CLASSNAME, "fiona2", WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, 1920, 0, 1920, 1920, NULL, NULL, GetModuleHandle(NULL), NULL);
+					fionaWinConf[1].winw=640;
+					fionaWinConf[1].winh=480;
+					fionaWinConf[1].walls.push_back(FionaWall(jvec3(-1.5, -1.5, -1.5), jvec3(3, 0, 0), jvec3(0, 3, 0)));
+					fionaWinConf[1].walls[0].viewports.push_back(FionaViewport(0, 0, 1, 1, 0, 0, 1, 1));
+					HWND hWnd2 = CreateWindow(_CLASSNAME, "fiona2", WS_OVERLAPPED | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, 640, 0, 640, 480, NULL, NULL, GetModuleHandle(NULL), NULL);
 					fionaWinConf[1].window = hWnd2;
 					//UpdateWindow(hWnd);
 					//we want a graphics thread that draws to the 2nd window only..
@@ -659,10 +664,18 @@ DWORD WINAPI __FionaRenderWallThreadFunc(LPVOID dataPtr)
 					
 				inited =true;
 				__FionaUTCreateWindowCB(fionaWinConf[1].window);
+				BOOL error = wglShareLists(info[0].hrc, info[1].hrc);
+				if (error == FALSE)
+				{
+					printf("****** Share Lists Error *******");
+				}
 				ShowWindow(fionaWinConf[1].window, SW_SHOWNORMAL);
+				fionaWinConf[1].displayFunc = fionaWinConf[0].displayFunc;
+
 				UpdateWindow(fionaWinConf[1].window);
 				SetForegroundWindow(fionaWinConf[1].window);
 				wglMakeCurrent(info[1].hdc, info[1].hrc);
+				FionaUTSleep(10.f);
 			}
 
 			/*fionaRenderCycleCount=0;
@@ -677,7 +690,7 @@ DWORD WINAPI __FionaRenderWallThreadFunc(LPVOID dataPtr)
 			
 				glClearColor(0.f, 1.f, 0.f, 1.f);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-				//_FionaUTDisplay(win,__FionaUTGetContext(win));
+				_FionaUTDisplaySecondWindow(win,__FionaUTGetContext(win));
 
 				//glFinish();
 
@@ -706,10 +719,10 @@ DWORD WINAPI __FionaRenderThreadFunc(LPVOID dataPtr)
 	{
 		bool inited = false;
 
-		LARGE_INTEGER last, cur;
+		/*LARGE_INTEGER last, cur;
 		LARGE_INTEGER freq;
 		QueryPerformanceFrequency(&freq);
-		float step = freq.QuadPart/(fionaConf.framerate+1);
+		float step = freq.QuadPart/(fionaConf.framerate+1);*/
 
 		if(!inited)
 		{
@@ -717,25 +730,26 @@ DWORD WINAPI __FionaRenderThreadFunc(LPVOID dataPtr)
 			__FionaUTCreateWindowCB(hWnd);
 			UpdateWindow(hWnd);
 			SetForegroundWindow(hWnd);
+			inited = true;
 		}
 
 		//we should wait here until some sort of 'go' signal comes across to all nodes...
 
 		while(!fionaDone)
 		{
-			QueryPerformanceCounter(&cur);
+			//QueryPerformanceCounter(&cur);
 
 			//if( fionaNetSlave==NULL )
 			//{
-				if( !inited || cur.QuadPart-last.QuadPart>=step )
+				//if( !inited)// || cur.QuadPart-last.QuadPart>=step )
 				{
-					last = cur;
-					inited =true;
+					//last = cur;
+					
 					fionaRenderCycleCount=0;
-					if( fionaConf.frameFunc ) 
+					/*if( fionaConf.frameFunc ) 
 					{
 						fionaConf.frameFunc(FionaUTTime());
-					}
+					}*/
 
 					bool bDraw = true;
 					if(fionaConf.appType == FionaConfig::HEADNODE)
@@ -749,12 +763,12 @@ DWORD WINAPI __FionaRenderThreadFunc(LPVOID dataPtr)
 						{
 							WIN win = fionaWinConf[i].window;
 			
-							__FionaUTMakeCurrent(win);
+							//__FionaUTMakeCurrent(win);
 			
-							if(bDraw)
-							{
+							//if(bDraw)
+							//{
 								_FionaUTDisplay(win,__FionaUTGetContext(win));
-							}
+							/*}
 							else
 							{
 								glClearColor(fionaConf.backgroundColor.x,
@@ -763,7 +777,7 @@ DWORD WINAPI __FionaRenderThreadFunc(LPVOID dataPtr)
 								 0);
 
 								glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);//|GL_STENCIL_BUFFER_BIT);
-							}
+							}*/
 							//glFinish();
 						}
 					}
@@ -796,6 +810,7 @@ DWORD WINAPI __FionaRenderThreadFunc(LPVOID dataPtr)
 		FionaUTCleanupGraphics();
 
 		fionaRenderDone = true;
+		fionaDone = true;
 	}
 
 	return 0;
@@ -943,39 +958,72 @@ HWND __FionaUTCreateWindow		(const char* name,int x,int y,int w,int h,int mode)
 			}*/
 		}
 		else if (fionaConf.appType == FionaConfig::CAVE1_DUALPIPE || fionaConf.appType == FionaConfig::CAVE2_DUALPIPE || fionaConf.appType == FionaConfig::CAVE3_DUALPIPE ||
-			fionaConf.appType == FionaConfig::CAVE4_DUALPIPE || fionaConf.appType == FionaConfig::CAVE5_DUALPIPE || fionaConf.appType == FionaConfig::CAVE6_DUALPIPE) {
+			fionaConf.appType == FionaConfig::CAVE4_DUALPIPE || fionaConf.appType == FionaConfig::CAVE5_DUALPIPE || fionaConf.appType == FionaConfig::CAVE6_DUALPIPE || 
+			fionaConf.appType == FionaConfig::CAVE1_SS || fionaConf.appType == FionaConfig::CAVE2_SS || fionaConf.appType == FionaConfig::CAVE3_SS ||
+			fionaConf.appType == FionaConfig::CAVE4_SS || fionaConf.appType == FionaConfig::CAVE5_SS || fionaConf.appType == FionaConfig::CAVE6_SS) {
 			//fionaWinConf[fionaCurWindow].winw = 1920 * 2;
 			//fionaWinConf[fionaCurWindow].winh = 1920;
 			hWnd = CreateWindow(_CLASSNAME, name, WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, fionaWinConf[fionaCurWindow].winx, fionaWinConf[fionaCurWindow].winy, fionaWinConf[fionaCurWindow].winw, fionaWinConf[fionaCurWindow].winh, NULL, NULL, GetModuleHandle(NULL), NULL);
 		}
 		else
 		{
-			fionaWinConf[fionaCurWindow].winw=1920*4;
-			fionaWinConf[fionaCurWindow].winh=1016;
-			hWnd = CreateWindow(_CLASSNAME, name, WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
-								0, 0, 1920*4, 1016, NULL, NULL, GetModuleHandle(NULL), NULL);
+			if (fionaConf.twoWindows)
+			{
+				fionaWinConf[fionaCurWindow].winw = 640;
+				fionaWinConf[fionaCurWindow].winh = 480;
+				hWnd = CreateWindow(_CLASSNAME, name, WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+					0, 0, 640, 480, NULL, NULL, GetModuleHandle(NULL), NULL);
+
+				/*fionaWinConf[fionaCurWindow].winw = 640;
+				fionaWinConf[fionaCurWindow].winh = 480;
+				hWnd = CreateWindow(_CLASSNAME, name, WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+					640, 0, 640, 480, NULL, NULL, GetModuleHandle(NULL), NULL);*/
+			}
+			else
+			{
+				fionaWinConf[fionaCurWindow].winw = 1920 * 4;
+				fionaWinConf[fionaCurWindow].winh = 1016;
+				hWnd = CreateWindow(_CLASSNAME, name, WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+					0, 0, 1920 * 4, 1016, NULL, NULL, GetModuleHandle(NULL), NULL);
+			}
 		}
 	}
 	else
 	{
-		// NOTE: if mode>0, I want to make a window filling mode-1 th screen
-		//   but it is a little tidious in Win32..
-		if (fionaConf.borderlessWindow)
+		if (fionaConf.twoWindows)
 		{
-				hWnd = CreateWindow(_CLASSNAME, name, WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
-					x, y, w, h, NULL, NULL, GetModuleHandle(NULL), NULL);
+			if (fionaCurWindow == 0)
+			{
+				hWnd = CreateWindow(_CLASSNAME, name, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+					0, 0, 640, 480, NULL, NULL, GetModuleHandle(NULL), NULL);
+			}
+			/*else if (fionaCurWindow == 1)
+			{
+				hWnd = CreateWindow(_CLASSNAME2, name, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+					640, 0, 640, 480, NULL, NULL, GetModuleHandle(NULL), NULL);
+			}*/
 		}
 		else
 		{
-			if (fionaConf.appType == FionaConfig::HEADNODE)
+			// NOTE: if mode>0, I want to make a window filling mode-1 th screen
+			//   but it is a little tidious in Win32..
+			if (fionaConf.borderlessWindow)
 			{
-				hWnd = CreateWindow(_CLASSNAME, name, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
-					0, 0, 1280, 800, NULL, NULL, GetModuleHandle(NULL), NULL);
+				hWnd = CreateWindow(_CLASSNAME, name, WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+					x, y, w, h, NULL, NULL, GetModuleHandle(NULL), NULL);
 			}
 			else
 			{
-				hWnd = CreateWindow(_CLASSNAME, name, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
-					x, y, w, h, NULL, NULL, GetModuleHandle(NULL), NULL);
+				if (fionaConf.appType == FionaConfig::HEADNODE)
+				{
+					hWnd = CreateWindow(_CLASSNAME, name, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+						0, 0, 1280, 800, NULL, NULL, GetModuleHandle(NULL), NULL);
+				}
+				else
+				{
+					hWnd = CreateWindow(_CLASSNAME, name, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+						x, y, w, h, NULL, NULL, GetModuleHandle(NULL), NULL);
+				}
 			}
 		}
 	}
@@ -995,13 +1043,13 @@ HWND __FionaUTCreateWindow		(const char* name,int x,int y,int w,int h,int mode)
 		ptDiff.x = (rcWind.right - rcWind.left) - rcClient.right;
 		ptDiff.y = (rcWind.bottom - rcWind.top) - rcClient.bottom;
 		//MoveWindow(hWnd, rcWind.left, rcWind.top, w + ptDiff.x, h + ptDiff.y, TRUE);
-		fionaWinConf[0].winw = w - ptDiff.x;
-		fionaWinConf[0].winh = h - ptDiff.y;
+		fionaWinConf[fionaCurWindow].winw = w - ptDiff.x;
+		fionaWinConf[fionaCurWindow].winh = h - ptDiff.y;
 		printf("Window: %d %d %d %d\n", fionaWinConf[0].winw, fionaWinConf[0].winh, ptDiff.x, ptDiff.y);
 		if (fionaConf.fboSameAsWindow && !fionaConf.useFBO)
 		{
-			fionaConf.FBOWidth = fionaWinConf[0].winw;// +ptDiff.x;
-			fionaConf.FBOHeight = fionaWinConf[0].winh;// +ptDiff.y;
+			fionaConf.FBOWidth = fionaWinConf[fionaCurWindow].winw;// +ptDiff.x;
+			fionaConf.FBOHeight = fionaWinConf[fionaCurWindow].winh;// +ptDiff.y;
 			printf("FBO: %d %d\n", fionaConf.FBOWidth, fionaConf.FBOHeight);
 		}
 		ShowWindow(hWnd, SW_SHOWNORMAL);
@@ -1032,16 +1080,20 @@ HWND __FionaUTCreateWindow		(const char* name,int x,int y,int w,int h,int mode)
 	{
 		printf("Using separate graphics thread...\n");
 		DWORD renderthreadId;
-		CreateThread(NULL, 0, __FionaRenderThreadFunc, 0, 0, &renderthreadId);
+		HANDLE h = CreateThread(NULL, 0, __FionaRenderThreadFunc, 0, 0, &renderthreadId);
+		SetThreadPriority(h, THREAD_PRIORITY_HIGHEST);
 	}
 
-	if(fionaConf.twoWindows && _FionaUTIsCAVEMachine())
+	if(fionaConf.twoWindows)// && _FionaUTIsCAVEMachine())
 	{
-		//ShowWindow(fionaWinConf[1].window,SW_SHOWNORMAL);
-		//__FionaUTCreateWindowCB(fionaWinConf[1].window);
+		/*if (fionaCurWindow == 0)
+		{
+			ShowWindow(fionaWinConf[1].window, SW_SHOWNORMAL);
+			__FionaUTCreateWindowCB(fionaWinConf[1].window);
+		}*/
 
-		//DWORD renderthreadId;
-		//CreateThread(NULL, 0, __FionaRenderWallThreadFunc, 0, 0, &renderthreadId);
+		DWORD renderthreadId;
+		CreateThread(NULL, 0, __FionaRenderWallThreadFunc, 0, 0, &renderthreadId);
 	}
 
 	/*if (fionaConf.appType != FionaConfig::OCULUS)
@@ -1478,12 +1530,12 @@ LRESULT	CALLBACK __FionaUTWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 
 			switch(wParam)
 			{
-			case VK_UP    : _FionaUTJoystick(0, jvec3( 0,0, -fionaConf.navigationSpeed)); break;  // up arrow
-				case VK_DOWN  : _FionaUTJoystick(0, jvec3( 0,0, fionaConf.navigationSpeed)); break;  // down arrow
-				case VK_LEFT  : _FionaUTJoystick(0, jvec3(-fionaConf.navigationSpeed,0, 0)); break;  // left arrow
-				case VK_RIGHT : _FionaUTJoystick(0, jvec3( fionaConf.navigationSpeed,0, 0)); break;  // right arrow
-				case VK_INSERT : _FionaUTJoystick(0, jvec3(0, fionaConf.navigationSpeed, 0)); break;
-				case VK_DELETE : _FionaUTJoystick(0, jvec3(0, -fionaConf.navigationSpeed, 0)); break;
+			case VK_UP    : _FionaUTJoystick(0, vec4( 0,0, -fionaConf.navigationSpeed, 0)); break;  // up arrow
+			case VK_DOWN: _FionaUTJoystick(0, vec4(0, 0, fionaConf.navigationSpeed, 0)); break;  // down arrow
+			case VK_LEFT: _FionaUTJoystick(0, vec4(-fionaConf.navigationSpeed, 0, 0, 0)); break;  // left arrow
+			case VK_RIGHT: _FionaUTJoystick(0, vec4(fionaConf.navigationSpeed, 0, 0, 0)); break;  // right arrow
+			case VK_INSERT: _FionaUTJoystick(0, vec4(0, fionaConf.navigationSpeed, 0, 0)); break;
+			case VK_DELETE: _FionaUTJoystick(0, vec4(0, -fionaConf.navigationSpeed, 0, 0)); break;
 			}
 			_FionaUTKeyboard(hWnd,wParam);
 		}
@@ -1519,12 +1571,12 @@ LRESULT	CALLBACK __FionaUTWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 
 			switch(wParam)
 			{
-				case VK_UP    : _FionaUTJoystick(0, jvec3( 0, 0, 0)); break;  // up arrow
-				case VK_DOWN  : _FionaUTJoystick(0, jvec3( 0, 0, 0)); break;  // down arrow
-				case VK_LEFT  : _FionaUTJoystick(0, jvec3( 0, 0, 0)); break;  // left arrow
-				case VK_RIGHT : _FionaUTJoystick(0, jvec3( 0, 0, 0)); break;  // right arrow
-				case VK_INSERT : _FionaUTJoystick(0, jvec3(0, 0, 0)); break;
-				case VK_DELETE : _FionaUTJoystick(0, jvec3(0, 0, 0)); break;
+				case VK_UP: _FionaUTJoystick(0, vec4(0, 0, 0, 0)); break;  // up arrow
+				case VK_DOWN: _FionaUTJoystick(0, vec4(0, 0, 0, 0)); break;  // down arrow
+				case VK_LEFT: _FionaUTJoystick(0, vec4(0, 0, 0, 0)); break;  // left arrow
+				case VK_RIGHT: _FionaUTJoystick(0, vec4(0, 0, 0, 0)); break;  // right arrow
+				case VK_INSERT: _FionaUTJoystick(0, vec4(0, 0, 0, 0)); break;
+				case VK_DELETE : _FionaUTJoystick(0, vec4(0, 0, 0, 0)); break;
 			}
 			return 0;
 		}

@@ -48,6 +48,7 @@ static void VRPN_CALLBACK trackerCallback(void* ud, const vrpn_TRACKERCB t)
 		printf("Position: %f, %f, %f\n", v.x, v.y, v.z);
 		printf("Rotation: %f, %f, %f, %f\n", q.x, q.y, q.z, q.w);
 	}*/
+	
 	_FionaUTTracker(t.sensor,v,q);
 }
 
@@ -67,12 +68,12 @@ static void VRPN_CALLBACK analogCallback(void* ud, const vrpn_ANALOGCB t)
 		horzCheck = 0.f;
 	}
 
-	_FionaUTJoystick(0, jvec3(horzCheck, t.channel[2], t.channel[1]));
+	_FionaUTJoystick(0, vec4(horzCheck, t.channel[2], t.channel[1], 0.f));
 }
 
 static void VRPN_CALLBACK analogCallback2(void* ud, const vrpn_ANALOGCB t)
 {
-	_FionaUTJoystick(1,jvec3(t.channel[0],t.channel[2],t.channel[1]));
+	_FionaUTJoystick(1,vec4(t.channel[0],t.channel[2],t.channel[1], 0.f));
 }
 
 static void VRPN_CALLBACK buttonCallback(void* ud, const vrpn_BUTTONCB t)
@@ -233,7 +234,7 @@ void FionaUTVRPN::StartRecord(void)
  {
 	 pausePlayback = true;
 	 pauseTime = FionaUTTime();
-	 _FionaUTJoystick(0, jvec3(0.f, 0.f, 0.f));
+	 _FionaUTJoystick(0, vec4(0.f, 0.f, 0.f, 0.f));
  }
 
  void FionaUTVRPN::UnpausePlayback(void)
@@ -344,7 +345,7 @@ void FionaUTVRPN::MainLoop(void)
 
 					_FionaUTTracker(1, v, q2);
 
-					_FionaUTJoystick(0, jvec3(currData.joystick[0], currData.joystick[2], currData.joystick[1]));
+					_FionaUTJoystick(0, vec4(currData.joystick[0], currData.joystick[2], currData.joystick[1], 0.f));
 
 					for (int i = 0; i < 6; ++i)
 					{
@@ -366,7 +367,7 @@ void FionaUTVRPN::MainLoop(void)
 			}
 			else
 			{
-				_FionaUTJoystick(0, jvec3(0.f, 0.f, 0.f));
+				_FionaUTJoystick(0, vec4(0.f, 0.f, 0.f, 0.f));
 				lastStampPlayed = false;
 			}
 		}

@@ -1,10 +1,10 @@
 #ifndef VRPN_CONNECTION_H
 #define VRPN_CONNECTION_H
 
-#include <stdio.h> // for NULL, sprintf
+#include <stdio.h> // for NULL, snprintf
 
 #include "vrpn_Configure.h" // for VRPN_API, VRPN_CALLBACK, etc
-#include "vrpn_Shared.h"    // for SOCKET, timeval
+#include "vrpn_Shared.h"    // for vrpn_SOCKET, timeval
 #include "vrpn_Types.h"     // for vrpn_int32, vrpn_uint32, etc
 #include "vrpn_EndpointContainer.h"
 
@@ -14,7 +14,7 @@
 
 struct timeval;
 
-// Don't complain about using sprintf() when using Visual Studio.
+// Turn off warnings for deprecated calls when compiling on Microsoft Visual Studio
 #ifdef _MSC_VER
 #pragma warning(disable : 4995 4996)
 #endif
@@ -80,8 +80,9 @@ const int vrpn_ANY_TYPE = -1;
 
 /// @name Buffer lengths for TCP and UDP.
 ///
-/// TCP is an arbitrary number that can be changed by the user
-/// using vrpn_Connection::set_tcp_outbuf_size().
+/// TCP is an arbitrary number but it must match the receiver's buffer
+/// size so it needs to remain the same for a given major VRPN version
+/// number.
 /// UDP is set based on Ethernet maximum transmission size;  trying
 /// to send a message via UDP which is longer than the MTU of any
 /// intervening physical network may cause untraceable failures,
@@ -152,7 +153,8 @@ extern VRPN_API const char *vrpn_dropped_last_connection;
 extern VRPN_API const char *vrpn_CONTROL;
 
 /// @brief Length of names within VRPN
-typedef char cName[100];
+const unsigned vrpn_CNAME_LENGTH = 100;
+typedef char vrpn_CNAME[vrpn_CNAME_LENGTH];
 
 /// Placed here so vrpn_FileConnection can use it too.
 struct VRPN_API vrpn_LOGLIST {
@@ -289,9 +291,9 @@ public:
     /// Adds a new remote type/sender and returns its index.
     /// Returns -1 on error.
     /// @{
-    int newRemoteType(cName type_name, vrpn_int32 remote_id,
+    int newRemoteType(vrpn_CNAME type_name, vrpn_int32 remote_id,
                       vrpn_int32 local_id);
-    int newRemoteSender(cName sender_name, vrpn_int32 remote_id,
+    int newRemoteSender(vrpn_CNAME sender_name, vrpn_int32 remote_id,
                         vrpn_int32 local_id);
     /// @}
 
@@ -471,8 +473,6 @@ public:
     ///< returns 0 on success, sets status to BROKEN and returns -1
     ///< on failure.
 
-    vrpn_int32 set_tcp_outbuf_size(vrpn_int32 bytecount);
-
     int setup_new_connection(void);
     ///< Sends the magic cookie and other information to its
     ///< peer.  It is called by both the client and server setup routines.
@@ -495,13 +495,13 @@ public:
     ///    the code split the functions between Endpoint and Connection
     ///    protected:
 
-    SOCKET d_tcpSocket;
+    vrpn_SOCKET d_tcpSocket;
 
     /// This section deals with when a client connection is trying to
     /// establish (or re-establish) a connection with its server. It
     /// keeps track of what we need to know to make this happen.
 
-    SOCKET d_tcpListenSocket;
+    vrpn_SOCKET d_tcpListenSocket;
     int d_tcpListenPort;
     ///< Socket and port that the client listens on
     ///< when lobbing datagrams at the server and
@@ -509,7 +509,7 @@ public:
 
     /// Socket to use to lob UDP requests asking for the server to
     /// call us back.
-    SOCKET d_udpLobSocket;
+    vrpn_SOCKET d_udpLobSocket;
 
     char *d_remote_machine_name;    ///< Machine to call
     int d_remote_port_number;       ///< Port to connect to on remote machine
@@ -525,8 +525,8 @@ protected:
     int getOneTCPMessage(int fd, char *buf, size_t buflen);
     int getOneUDPMessage(char *buf, size_t buflen);
 
-    SOCKET d_udpOutboundSocket;
-    SOCKET d_udpInboundSocket;
+    vrpn_SOCKET d_udpOutboundSocket;
+    vrpn_SOCKET d_udpInboundSocket;
     ///< Inbound unreliable messages come here.
     ///< Need one for each due to different
     ///< clock synchronization for each; we
@@ -881,7 +881,6 @@ protected:
     /// are found.
     vrpn_uint32 d_stop_processing_messages_after;
 
-protected:
     friend VRPN_API vrpn_Connection *vrpn_get_connection_by_name(
         const char *cname, const char *local_in_logfile_name,
         const char *local_out_logfile_name, const char *remote_in_logfile_name,
@@ -894,8 +893,8 @@ protected:
 
     /// @name Only used for a vrpn_Connection that awaits incoming connections
     /// @{
-    SOCKET listen_udp_sock; ///< UDP Connect requests come here
-    SOCKET listen_tcp_sock; ///< TCP Connection requests come here
+    vrpn_SOCKET listen_udp_sock; ///< UDP Connect requests come here
+    vrpn_SOCKET listen_tcp_sock; ///< TCP Connection requests come here
     /// @}
 
     /// Routines that handle system messages
@@ -1031,10 +1030,10 @@ vrpn_create_server_connection(int port = vrpn_DEFAULT_LISTEN_PORT_NO,
 {
     char name[256];
     if (NIC_NAME == NULL) {
-        sprintf(name, ":%d", port);
+        snprintf(name, 256, ":%d", port);
     }
     else {
-        sprintf(name, "%s:%d", NIC_NAME, port);
+        snprintf(name, 256, "%.200s:%d", NIC_NAME, port);
     }
     return vrpn_create_server_connection(name, local_in_logfile_name,
                                          local_out_logfile_name);
@@ -1108,8 +1107,8 @@ int VRPN_API vrpn_noint_select(int width, fd_set *readfds, fd_set *writefds,
                                fd_set *exceptfds, struct timeval *timeout);
 #else  /* winsock sockets */
 int VRPN_API
-vrpn_noint_block_write(SOCKET outsock, char *buffer, size_t length);
-int VRPN_API vrpn_noint_block_read(SOCKET insock, char *buffer, size_t length);
+vrpn_noint_block_write(vrpn_SOCKET outsock, char *buffer, size_t length);
+int VRPN_API vrpn_noint_block_read(vrpn_SOCKET insock, char *buffer, size_t length);
 #endif /* VRPN_USE_WINSOCK_SOCKETS */
        /// @}
 

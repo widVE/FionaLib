@@ -1,33 +1,17 @@
-﻿Build started 6/6/2019 10:23:01 AM.
-     1>Project "S:\apps\dual_test\FionaLib\FionaLib.vcxproj" on node 2 (Rebuild target(s)).
-     1>ClCompile:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /I.\include /I"C:\Program Files\NVIDIA Corporation\NvToolsExt\include" /Zi /nologo /W3 /WX- /O2 /Oi /GL /D WIN32 /D _WIN64 /D NDEBUG /D _LIB /D _MBCS /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Release\\" /Fd"x64\Release\vc120.pdb" /Gd /TP /errorReport:prompt FionaNetwork.cpp FionaScene.cpp FionaUT.cpp FionaUTConfig.cpp FionaUTEvent.cpp FionaUTRender.cpp FionaUTVRPN.cpp FionaUTWin32.cpp Socket.cpp VRAction.cpp
-         FionaNetwork.cpp
-         FionaScene.cpp
-     1>FionaScene.cpp(1161): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
-         GLM: rotate function taking degrees as a parameter is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
-         FionaUT.cpp
-         FionaUTConfig.cpp
-         FionaUTEvent.cpp
-         FionaUTRender.cpp
-         FionaUTVRPN.cpp
-         FionaUTWin32.cpp
-         Socket.cpp
-         VRAction.cpp
-       Lib:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\Lib.exe /OUT:"lib64\FionaLib.lib" /NOLOGO /MACHINE:X64 /LTCG x64\Release\FionaNetwork.obj
-         x64\Release\FionaScene.obj
-         x64\Release\FionaUT.obj
-         x64\Release\FionaUTConfig.obj
-         x64\Release\FionaUTEvent.obj
-         x64\Release\FionaUTRender.obj
-         x64\Release\FionaUTVRPN.obj
-         x64\Release\FionaUTWin32.obj
-         x64\Release\Socket.obj
-         x64\Release\VRAction.obj
-         FionaLib.vcxproj -> S:\apps\dual_test\FionaLib\lib64\FionaLib.lib
-     1>Done Building Project "S:\apps\dual_test\FionaLib\FionaLib.vcxproj" (Rebuild target(s)).
-
-Build succeeded.
-
-Time Elapsed 00:00:14.95
+﻿  FionaNetwork.cpp
+  FionaScene.cpp
+S:\projects6\Tredinnick-CaveShared\apps\special_dual_test\FionaLib\FionaScene.cpp(1201,58): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+  GLM: rotate function taking degrees as a parameter is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
+  FionaUT.cpp
+  FionaUTConfig.cpp
+S:\projects6\Tredinnick-CaveShared\apps\special_dual_test\FionaLib\FionaUTConfig.cpp(861,11): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'unsigned __int64'
+      S:\projects6\Tredinnick-CaveShared\apps\special_dual_test\FionaLib\FionaUTConfig.cpp(861,11):
+      consider using '%zd' in the format string
+  
+  FionaUTEvent.cpp
+  FionaUTRender.cpp
+  FionaUTVRPN.cpp
+  FionaUTWin32.cpp
+  Socket.cpp
+  VRAction.cpp
+  FionaLib.vcxproj -> S:\projects6\Tredinnick-CaveShared\apps\special_dual_test\FionaLib\lib64\FionaLib.lib

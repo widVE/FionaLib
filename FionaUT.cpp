@@ -33,6 +33,8 @@
 #ifdef ENABLE_VIVE
 bool CreateFrameBuffer(int nWidth, int nHeight, FramebufferDesc &framebufferDesc)
 {
+	//does the multi-sample stuff here cause issues?
+
 	glGenFramebuffers(1, &framebufferDesc.m_nRenderFramebufferId);
 	glBindFramebuffer(GL_FRAMEBUFFER, framebufferDesc.m_nRenderFramebufferId);
 
@@ -220,6 +222,43 @@ WIN		FionaUTGetNativeWindow	(void)	{return fionaActiveWindow;}
 CTX		FionaUTGetContext		(void)	{return fionaActiveContext;}
 
 //******************************************
+#ifdef ENABLE_VIVE
+void ComposeProjection(float fLeft, float fRight, float fTop, float fBottom, float zNear, float zFar, vr::HmdMatrix44_t *pmProj)
+{
+
+	/*float projXScale = 2.0f / (fLeft + fRight);
+	float projXOffset = (fLeft - fRight) * projXScale * 0.5f;
+	float projYScale = 2.0f / (fTop + fBottom);
+	float projYOffset = (fTop - fBottom) * projYScale * 0.5f;*/
+
+	//float idx = 1.0f / (fRight - fLeft);
+	//float idy = 1.0f / (fBottom - fTop);
+	//float idz = 1.0f / (zFar - zNear);
+	/*float sx = fLeft - fRight;
+	float sy = fTop - fBottom;
+
+	float projXScale = 2.f / (fLeft + fRight);
+	float projYScale = 2.f / (fBottom + fTop);*/
+
+	/*float(*p)[4] = pmProj->m;
+	p[0][0] = projXScale; p[0][1] = 0;     p[0][2] = -1.f * projXOffset;    p[0][3] = 0;
+	p[1][0] = 0;     p[1][1] = projYScale; p[1][2] = -1.f * -projYOffset;    p[1][3] = 0;
+	p[2][0] = 0;     p[2][1] = 0;     p[2][2] = (zNear+zFar)/(zNear-zFar); p[2][3] = 2.f*zFar*zNear/(zNear-zFar);
+	p[3][0] = 0;     p[3][1] = 0;     p[3][2] = -1.0f;     p[3][3] = 0;*/
+
+	float idx = 1.0f / (fRight - fLeft);
+	float idy = -(1.0f / (fBottom - fTop));
+	float idz = 1.0f / (zFar - zNear);
+	float sx = fRight + fLeft;
+	float sy = fBottom + fTop;
+
+	float(*p)[4] = pmProj->m;
+	p[0][0] = 2 * idx; p[0][1] = 0;     p[0][2] = sx*idx;    p[0][3] = 0;
+	p[1][0] = 0;     p[1][1] = 2 * idy; p[1][2] = sy*idy;    p[1][3] = 0;
+	p[2][0] = 0;     p[2][1] = 0;     p[2][2] = -zFar*idz; p[2][3] = -zFar*zNear*idz;
+	p[3][0] = 0;     p[3][1] = 0;     p[3][2] = -1.0f;     p[3][3] = 0;
+}
+#endif
 
 // Windowing related functions called back by Native Windowing system
 void _FionaUTCreated	(WIN win) 
@@ -238,7 +277,8 @@ void _FionaUTCreated	(WIN win)
 	// Make eye render buffers
 	for (int eye = 0; eye < 2; ++eye)
 	{
-		ovrSizei idealTextureSize = ovr_GetFovTextureSize(fionaConf.session, ovrEyeType(eye), fionaConf.hmdDesc.DefaultEyeFov[eye], 1);
+		ovrSizei idealTextureSize = ovr_GetFovTextureSize(fionaConf.session, ovrEyeType(eye), fionaConf.hmdDesc.DefaultEyeFov[eye], fionaConf.oculusResMultiplier);
+		printf("Eye %d, Width: %u, Height %u\n", eye, idealTextureSize.w, idealTextureSize.h);
 		fionaConf.eyeRenderTexture[eye] = new TextureBuffer(fionaConf.session, true, true, idealTextureSize, 1, NULL, 1);
 		fionaConf.eyeDepthBuffer[eye] = new DepthBuffer(fionaConf.eyeRenderTexture[eye]->GetSize(), 0);
 
@@ -280,26 +320,113 @@ void _FionaUTCreated	(WIN win)
 	{
 		fionaConf.m_pHMD->GetRecommendedRenderTargetSize(&renderW, &renderH);
 
-		printf("Recommended texture size: %u %u\n", renderW, renderH);
-		CreateFrameBuffer(renderW, renderH, fionaConf.leftEyeDesc);
-		CreateFrameBuffer(renderW, renderH, fionaConf.rightEyeDesc);
+		if (fionaConf.singlePassStereo)
+		{
+			fionaConf.FBOWidth = (int)renderW;
+			fionaConf.FBOHeight = (int)renderH;
 
-		fionaConf.FBOWidth = (int)renderW;
-		fionaConf.FBOHeight = (int)renderH;
+			float ll, lr, lt, lb = 0.f;
+			fionaConf.m_pHMD->GetProjectionRaw(vr::Eye_Left, &ll, &lr, &lt, &lb);
+			float rl, rr, rt, rb = 0.f;
+			fionaConf.m_pHMD->GetProjectionRaw(vr::Eye_Right, &rl, &rr, &rt, &rb);
 
-		vr::HmdMatrix44_t mat = fionaConf.m_pHMD->GetProjectionMatrix(vr::Eye_Left, fionaConf.nearClip, fionaConf.farClip);
+			float ll2 = atan(ll);
+			float lr2 = atan(lr);
+			float lt2 = atan(lt);
+			float lb2 = atan(lb);
+			float rl2 = atan(rl);
+			float rr2 = atan(rr);
+			float rt2 = atan(rt);
+			float rb2 = atan(rb);
 
-		fionaConf.projLeft = glm::mat4(mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
-			mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
-			mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
-			mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3]);
+			printf("Left Eye: %f %f %f %f\n", ll2, lr2, lt2, lb2);
+			printf("Right Eye: %f %f %f %f\n", rl2, rr2, rt2, rb2);
 
-		mat = fionaConf.m_pHMD->GetProjectionMatrix(vr::Eye_Right, fionaConf.nearClip, fionaConf.farClip);
+			float ml = MAX(-ll, -rl);
+			float mr = MAX(lr, rr);
+			float mt  MAX(-lt, -rt);
+			float mb = MAX(lb, rb);
 
-		fionaConf.projRight = glm::mat4(mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
-			mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
-			mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
-			mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3]);
+			float ml2 = MAX(-ll2, -rl2);
+			float mr2 = MAX(lr2, rr2);
+			float mt2  MAX(-lt2, -rt2);
+			float mb2 = MAX(lb2, rb2);
+
+			float mtb = MAX(mt, mb);
+			float mlr = MAX(ml, mr);
+
+			float mtb2 = MAX(mt2, mb2);
+			float mlr2 = MAX(ml2, mr2);
+
+			ml = mr = mlr;
+			mt = mb = mtb;
+
+			ml2 = mr2 = mlr2;
+			mt2 = mb2 = mtb2;
+			printf("Max Eye: %f %f %f %f\n", ml, mr, mt, mb);
+
+			/*ml *= fionaConf.nearClip;
+			mr *= fionaConf.nearClip;
+			mt *= fionaConf.nearClip;
+			mb *= fionaConf.nearClip;*/
+
+			vr::HmdMatrix44_t mat;
+			ComposeProjection(-ml, mr, mt, -mb, fionaConf.nearClip, fionaConf.farClip, &mat);
+
+			fionaConf.projLeft = glm::mat4(mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
+				mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
+				mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
+				mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3]);
+			
+			//need to adjust FBOWidth / Height to account for overlapping FOV...
+			glm::vec4 textureBounds[2];
+			textureBounds[0].x = 0.5f + 0.5f * ll / mlr;
+			textureBounds[0].y = 0.5f + 0.5f * lr / mlr;
+			textureBounds[0].z = 0.5f - 0.5f * lb / mtb;
+			textureBounds[0].w = 0.5f - 0.5f * lt / mtb;
+
+			textureBounds[1].x = 0.5f + 0.5f * rl / mlr;
+			textureBounds[1].y = 0.5f + 0.5f * rr / mlr;
+			textureBounds[1].z = 0.5f - 0.5f * rb / mtb;
+			textureBounds[1].w = 0.5f - 0.5f * rt / mtb;
+
+			//fionaConf.FBOWidth = fionaConf.FBOWidth / MAX(textureBounds[0].y - textureBounds[0].x, textureBounds[1].y - textureBounds[1].x);
+			//fionaConf.FBOHeight = fionaConf.FBOHeight / MAX(textureBounds[0].w - textureBounds[0].z, textureBounds[1].w - textureBounds[1].z);
+
+			//printf("**** Adjusted Width / Height to: %d %d\n", fionaConf.FBOWidth, fionaConf.FBOHeight);
+			/*fionaConf.projLeft = glm::mat4(mat.m[0][0], mat.m[0][1], mat.m[0][2], mat.m[0][3],
+				mat.m[1][0], mat.m[1][1], mat.m[1][2], mat.m[1][3],
+				mat.m[2][0], mat.m[2][1], mat.m[2][2], mat.m[2][3],
+				mat.m[3][0], mat.m[3][1], mat.m[3][2], mat.m[3][3]);*/
+
+			CreateFrameBuffer(fionaConf.FBOWidth, fionaConf.FBOHeight, fionaConf.leftEyeDesc);
+			CreateFrameBuffer(fionaConf.FBOWidth, fionaConf.FBOHeight, fionaConf.rightEyeDesc);
+
+			fionaConf.projRight = fionaConf.projLeft;
+		}
+		else
+		{
+			printf("Recommended texture size: %u %u\n", renderW, renderH);
+			CreateFrameBuffer(renderW, renderH, fionaConf.leftEyeDesc);
+			CreateFrameBuffer(renderW, renderH, fionaConf.rightEyeDesc);
+
+			fionaConf.FBOWidth = (int)renderW;
+			fionaConf.FBOHeight = (int)renderH;
+
+			vr::HmdMatrix44_t mat = fionaConf.m_pHMD->GetProjectionMatrix(vr::Eye_Left, fionaConf.nearClip, fionaConf.farClip);
+
+			fionaConf.projLeft = glm::mat4(mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
+				mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
+				mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
+				mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3]);
+
+			mat = fionaConf.m_pHMD->GetProjectionMatrix(vr::Eye_Right, fionaConf.nearClip, fionaConf.farClip);
+
+			fionaConf.projRight = glm::mat4(mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
+				mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
+				mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
+				mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3]);
+		}
 
 		vr::HmdMatrix34_t matEyeLeft = fionaConf.m_pHMD->GetEyeToHeadTransform(vr::Eye_Left);
 
@@ -642,16 +769,16 @@ void _FionaUTFrame		(void)
 	}
 #endif
 
+	// Call user frame function
+	if (fionaConf.frameFunc)
+	{
+		fionaConf.frameFunc(FionaUTTime());
+	}
+
 	if(!fionaConf.graphicsThread)
 	{
 		// Render to all the windows
 		fionaRenderCycleCount=0;
-
-		// Call user frame function
-		if( fionaConf.frameFunc ) 
-		{
-			fionaConf.frameFunc(FionaUTTime());
-		}
 
 		bool bDraw = true;
 		if(fionaConf.appType == FionaConfig::HEADNODE)
@@ -810,7 +937,10 @@ void _FionaUTFrame		(void)
 					swapTimeStart = BeginTiming(PCFreq);
 				}
 #endif
-				__FionaUTSwapBuffer(fionaWinConf[0].window);
+				if (!fionaConf.dontClear)
+				{
+					__FionaUTSwapBuffer(fionaWinConf[0].window);
+				}
 
 				/*if(swapTimeStart == 0)
 				{

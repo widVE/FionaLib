@@ -53,7 +53,7 @@
 
 //-----------------------
 // Use the std::chrono library for time, rather than gettimeofday.
-/* #undef VRPN_USE_STD_CHRONO */
+#define VRPN_USE_STD_CHRONO
 
 //-----------------------
 // Use compile-time static asserts.
@@ -119,6 +119,10 @@
 // server_src/vrpn_phantom.dsp to reference the Ghost 3.1 include
 // paths.)
 /* #undef VRPN_USE_GHOST_31 */
+
+//------------------------
+// Instructs vrpn to use libi2c-dev.
+/* #undef VRPN_USE_I2CDEV */
 
 //-----------------------
 // Instructs VRPN to use the high-performance timer code on
@@ -343,7 +347,7 @@
 // Instructs VRPN to attempt to use HID.  If you don't have libusb installed
 // on Linux, you'll want to turn this off so that it doesn't fail to compile.
 // This should work fine on Windows and Mac.
-/* #undef VRPN_USE_HID */
+#define VRPN_USE_HID
 
 //------------------------
 // Instructs VRPN to link in the source code to a local version of
@@ -357,7 +361,7 @@
 // Note that on Linux you will also need to have the libusb package
 // installed in order to compile HIDAPI.  You'll also need to uncomment
 // the Makefile line in server_src that links with usb.
-/* #undef VRPN_USE_LOCAL_HIDAPI */
+#define VRPN_USE_LOCAL_HIDAPI
 
 //------------------------
 // Instructs VRPN to attempt to use LibUSB-1.0. This will compile and
@@ -386,7 +390,7 @@
 // Instructs VRPN to compile code to handle JSON network messages.
 // This requires jsoncpp.
 // JSON Network (UDP) mesages are used by the vrpn widgets for Android,
-/* #undef VRPN_USE_JSONNET */
+#define VRPN_USE_JSONNET
 
 //------------------------
 // Instructs VRPN to compile code to use the Arrington Research

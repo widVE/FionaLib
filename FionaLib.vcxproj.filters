@@ -71,5 +71,8 @@
     <ClInclude Include="VRAction.h">
       <Filter>Resource Files\Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="Structs.h">
+      <Filter>Resource Files\Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

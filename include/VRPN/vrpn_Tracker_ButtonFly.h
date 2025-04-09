@@ -3,7 +3,7 @@
 
 #include <quat.h>                       // for q_matrix_type
 #include <stdio.h>                      // for NULL
-#include <string.h>                     // for strcpy, memcpy, strncpy
+#include <string.h>                     // for strcpy, memcpy
 
 #include "vrpn_Analog.h"                // for vrpn_ANALOGCB, etc
 #include "vrpn_Button.h"                // for vrpn_BUTTONCB, etc
@@ -29,14 +29,14 @@ class VRPN_API vrpn_TBF_axis {
   public:
 
     vrpn_TBF_axis(void)
-      { strcpy(name,""); channel = 0;
+      { vrpn_strcpy(name,""); channel = 0;
 	vec[0] = vec[1] = vec[2] = 0.0;
 	rot[0] = rot[1] = rot[2] = 0.0;
 	absolute = false;
       };
     vrpn_TBF_axis(const char *n, int ch, const float v[],
 	const float rv[], bool absolut)
-      { strncpy(name, n, sizeof(name)-1); name[sizeof(name)-1] = '\0';
+      { vrpn_strcpy(name, n);
 	channel = ch;
 	memcpy(vec, v, sizeof(vec));
 	memcpy(rot, rv, sizeof(rot));
@@ -55,8 +55,8 @@ class VRPN_API vrpn_Tracker_ButtonFlyParam {
   public:
 
     vrpn_Tracker_ButtonFlyParam (void) {
-      strcpy(vel_scale_name, "");
-      strcpy(rot_scale_name, "");
+      vrpn_strcpy(vel_scale_name, "");
+      vrpn_strcpy(rot_scale_name, "");
       num_axes = 0;
     }
 

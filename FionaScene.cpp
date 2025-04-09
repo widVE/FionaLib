@@ -21,6 +21,7 @@ FionaScene::FionaScene(void): navMode(WAND_NONE), bDrawWand(true), physicsStep(0
 	position = glm::vec3(0.f,0.f,0.f);
 	angles = glm::vec3(0.f, 0.f, 0.f);
 
+	printf("CAM ORI: %f %f %f %f\n", camOri.x, camOri.y, camOri.z, camOri.w);
 #ifdef ENABLE_VIVE
 	m_glControllerVertBuffer = 0;
 	m_unControllerVAO = 0;
@@ -383,6 +384,7 @@ void FionaScene::getViewDir(jvec3 &viewDir)
 
 void FionaScene::preRender(float value)
 {
+	//printf("PRE RENDER SCENE: %f %f %f %f\n", camOri.x, camOri.y, camOri.z, camOri.w);
 	lastCamPos = camPos;
 	lastCamOri = camOri;
 
@@ -520,11 +522,22 @@ void FionaScene::preRender(float value)
 					}
 					else
 					{
-						camOri =exp(YAXIS*-joystick.x*fionaConf.rotationSpeed)*camOri;
-						jvec3 wandDir=wandOri.rot(jvec3(-joystick.y*fionaConf.navigationSpeed,0,-joystick.z*fionaConf.navigationSpeed));
-						jvec3 vRotWandDir = camOri.rot(wandDir);
-						vRotWandDir.y = 0.f;
-						camPos+=vRotWandDir;
+						if (joystick.len() > 0.f)
+						{
+							//printf("Joystick: %f %f %f %f\n", joystick.x, joystick.y, joystick.z, joystick.h);
+							//printf("Cam Ori Before: %f %f %f %f\n", camOri.x, camOri.y, camOri.z, camOri.w);
+							camOri = exp(YAXIS*-joystick.x*fionaConf.rotationSpeed)*camOri;
+							//printf("Cam Ori: %f %f %f %f\n", camOri.x, camOri.y, camOri.z, camOri.w);
+							jvec3 wandDir = wandOri.rot(jvec3(-joystick.y*fionaConf.navigationSpeed, 0, -joystick.z*fionaConf.navigationSpeed));
+							//printf("Wand Dir: %f %f %f\n", wandDir.x, wandDir.y, wandDir.z);
+							jvec3 vRotWandDir = camOri.rot(wandDir);
+							//printf("vRotWandDir: %f %f %f\n", vRotWandDir.x, vRotWandDir.y, vRotWandDir.z);
+							vRotWandDir.y = 0.f;
+							camPos += vRotWandDir;
+							//printf("Joystick: %f %f %f %f\n", joystick.x, joystick.y, joystick.z, joystick.h);
+							//printf("Wand Ori: %f %f %f %f\n", wandOri.x, wandOri.y, wandOri.z, wandOri.w);
+							//printf("Cam Pos: %f %f %f\n", camPos.x, camPos.y, camPos.z);
+						}
 					}
 #endif
 				}
@@ -601,6 +614,12 @@ void FionaScene::preRender(float value)
 #ifdef ENABLE_VIVE
 	// Process SteamVR events
 	vr::VREvent_t event;
+	if (fionaConf.m_pHMD == 0)
+	{
+		printf("Steam not running, shutting down...\n");
+		exit(0);
+	}
+
 	while (fionaConf.m_pHMD->PollNextEvent(&event, sizeof(event)))
 	{
 		switch (event.eventType)
@@ -672,6 +691,8 @@ void FionaScene::preRender(float value)
 			if ((vr::ButtonMaskFromId(vr::k_EButton_SteamVR_Trigger) & state.ulButtonPressed) != 0)
 			{
 				//printf("Trigger pressed!\n");
+				printf("%f %f %f\n", camPos.x, camPos.y, camPos.z);
+				printf("%f %f %f %f\n", camOri.x, camOri.y, camOri.z, camOri.w);
 			}
 
 			if ((vr::ButtonMaskFromId(vr::k_EButton_SteamVR_Touchpad) & state.ulButtonTouched) != 0)
@@ -781,8 +802,22 @@ void FionaScene::render(void)
 			case SECOND_TRACKER_BODY:
 			case CONTROLLER_FREE_MOVE:
 				{
+#ifdef ENABLE_OCULUS
+#ifdef ENABLE_CV1
+					glRotate(fionaConf.headRot.inv());
+#endif
+#endif
+					//glTranslate(fionaCurEyePos);
 					glRotate(camOri.inv());
+					//glTranslate(-fionaCurEyePos);
 					glTranslate(-camPos);
+					
+					//glTranslate(-(camOri.rot(fionaCurEyePos)));
+#ifdef ENABLE_OCULUS
+#ifdef ENABLE_CV1
+					glTranslate(-(camOri.rot(fionaConf.headPos)));
+#endif
+#endif
 					break;
 				}
 			default:
@@ -796,6 +831,7 @@ void FionaScene::render(void)
 		glm::mat3 m(fionaConf.hmdPose[0][0], fionaConf.hmdPose[0][1], fionaConf.hmdPose[0][2],
 			fionaConf.hmdPose[1][0], fionaConf.hmdPose[1][1], fionaConf.hmdPose[1][2],
 			fionaConf.hmdPose[2][0], fionaConf.hmdPose[2][1], fionaConf.hmdPose[2][2]);
+		m = glm::transpose(m);
 		glm::quat q(m);
 		fionaConf.camRot = quat(q.w, q.x, q.y, q.z);
 		//camPos = jvec3(fionaConf.hmdPose[3][0], fionaConf.hmdPose[3][1], fionaConf.hmdPose[3][2]);
@@ -807,7 +843,7 @@ void FionaScene::render(void)
 void FionaScene::updateController(unsigned short wB, unsigned char bLT, unsigned char bRT, short sTLX, short sTLY, short sTRX, short sTRY)
 {
 #ifndef LINUX_BUILD
-
+	//printf("Updating controller: %f %f %f %f\n", camOri.x, camOri.y, camOri.z, camOri.w);
 	//if(fionaConf.appType == FionaConfig::DEVLAB || fionaConf.appType == FionaConfig::DEVLAB_WIN8 || fionaConf.appType == FionaConfig::WINDOWED || fionaConf.appType == FionaConfig::HEADNODE)
 	//{
 	//	navMode = CONTROLLER_FREE_MOVE;
@@ -822,7 +858,7 @@ void FionaScene::updateController(unsigned short wB, unsigned char bLT, unsigned
 	//if(m_actions.GetCurrentSet() == 0)
 	//{
 	//printf("%d %d %d %d\n", sTLX, sTLY, sTRX, sTRY);
-	joystick = jvec3(0.f, 0.f, 0.f);
+	joystick = vec4(0.f, 0.f, 0.f, 0.f);
 	if(sTRX < -RIGHT_THUMB_DEADZONE || sTRX > RIGHT_THUMB_DEADZONE)
 	{
 		joystick.x = (float)sTRX / (float)SHRT_MAX;
@@ -832,7 +868,7 @@ void FionaScene::updateController(unsigned short wB, unsigned char bLT, unsigned
 	if(sTRY < -RIGHT_THUMB_DEADZONE || sTRY > RIGHT_THUMB_DEADZONE)
 	{
 		joystick.h = (float)sTRY / (float)SHRT_MAX;
-		//camOri = exp(ZAXIS*-fVal*fionaConf.rotationSpeed)*camOri;  
+		//camOri = exp(XAXIS*-joystick.h*fionaConf.rotationSpeed) * camOri;
 	}
 
 	if(sTLX < -LEFT_THUMB_DEADZONE || sTLX > LEFT_THUMB_DEADZONE)
@@ -847,6 +883,7 @@ void FionaScene::updateController(unsigned short wB, unsigned char bLT, unsigned
 		//camPos += camOri.rot(jvec3(0.f, 0.f, -fVal * fionaConf.navigationSpeed));
 	}
 
+	//_FionaUTJoystick(0, joystick);
 
 	//TRIGGERS:
 	if (bLT > GAMEPAD_TRIGGER_THRESHOLD)	{ /*L-TRIGGER*/	}
@@ -869,19 +906,22 @@ void FionaScene::updateController(unsigned short wB, unsigned char bLT, unsigned
 	if ((wB & 0x8000) >> 15)	{ /*Y*/ }
 	//}
 #endif
+
+	//printf("End Updating controller: %f %f %f %f\n", camOri.x, camOri.y, camOri.z, camOri.w);
 }
 
-void FionaScene::updateJoystick(const jvec3& v)
+void FionaScene::updateJoystick(const vec4& v)
 { 
+	//printf("Updating joystick: %f %f %f %f\n", camOri.x, camOri.y, camOri.z, camOri.w);
 	if(m_actions.GetCurrentSet() == 0)
 	{
-		joystick = vec4(v.x, v.y, v.z, joystick.h);
+		joystick = vec4(v.x, v.y, v.z, v.h);
 		return;
 	}
 
 	if(m_actions.GetCurrentSet()->GetName() == std::string("command_mode"))
 	{
-		joystick = vec4(v.x, v.y, v.z, joystick.h);
+		joystick = vec4(v.x, v.y, v.z, v.h);
 		return;
 	}
 	
@@ -901,7 +941,7 @@ void FionaScene::updateJoystick(const jvec3& v)
 			VRWandAction *pWand = static_cast<VRWandAction*>(pCurrAction);
 			if(!pWand->IsNoMovement())
 			{
-				joystick = vec4(v.x, v.y, v.z, joystick.h);
+				joystick = vec4(v.x, v.y, v.z, v.h);
 			}
 			
 			if(joystickWasPressed)
@@ -924,7 +964,7 @@ void FionaScene::updateJoystick(const jvec3& v)
 	}
 	else
 	{
-		joystick = vec4(v.x, v.y, v.z, joystick.h); 
+		joystick = vec4(v.x, v.y, v.z, v.h); 
 		//for testing locally windowed machine...
 		VRAction *pJoystickAction = m_actions.GetCurrentSet()->GetJoystickAction();
 		if(pJoystickAction != 0)
@@ -1193,10 +1233,15 @@ float FionaScene::getFrustumValue(unsigned int whichPlane, int whichWall, int wh
 	jvec3 vWallLT = camOri.rot(wall.vLT) + camPos;
 	jvec3 vWallRB = camOri.rot(wall.vRB) + camPos;
 
-	jvec3 vWallUp = vWallLT - vWallLB;
-	jvec3 vWallRight = vWallRB - vWallLB;
+	jvec3 vWallUp = (vWallLT - vWallLB);
+	jvec3 vWallRight = (vWallRB - vWallLB);
 	
-	jvec3 vWallNorm = vWallRight * vWallUp;
+	jvec3 vWallUpNorm = vWallUp;
+	vWallUpNorm = vWallUpNorm.normalize();
+	jvec3 vWallRightNorm = vWallRight;
+	vWallRightNorm = vWallRightNorm.normalize();
+
+	jvec3 vWallNorm = vWallRightNorm * vWallUpNorm;
 	vWallNorm = vWallNorm.normalize();
 
 	jvec3 vProjLB = vWallLB + vWallUp * vp.sy;
@@ -1211,32 +1256,35 @@ float FionaScene::getFrustumValue(unsigned int whichPlane, int whichWall, int wh
 	jvec3 vToRT = (vProjRT - vExactEye).normalize();
 
 	jvec3 vToT = (((vProjLT + vProjRT) * 0.5f) - vExactEye).normalize();
+	jvec3 vToR = (((vProjRT + vProjRB) * 0.5f) - vExactEye).normalize();
 
 	float d = -(vWallNorm % vToT);
-	//float d = -(vWallNorm % vToLB);
+	float d2 = -(vWallNorm % vToR);
 
-	float value = fionaConf.nearClip/d;
+	float value = 0.f;// fionaConf.nearClip / d;
+	//float value2 = fionaConf.nearClip / d2;
 
 	switch(whichPlane)
 	{
 		case TOP_P:
 		{
-			value = (vWallUp % vToT) * value;// vToLT) * value;
+			value = acos(d);// (vWallUp % vToT) * value;// vToLT) * value;
+			//printf("D: %f, Degrees: %f\n", d, value * 360.f / 3.14159f);
 			break;
 		}
 		case BOTTOM_P:
 		{
-			value = (vWallUp % vToLB) * value;
+			value = acos(d);// (vWallUp % vToLB) * value;
 			break;
 		}
 		case LEFT_P:
 		{
-			value = (vWallRight % vToLB) * value;
+			value = acos(d2);// (vWallRight % vToLB) * value2;
 			break;
 		}
 		case RIGHT_P:
 		{
-			value = (vWallRight % vToRB) * value;
+			value = acos(d2);// (vWallRight % vToRB) * value2;
 			break;
 		}
 		case NEAR_P:

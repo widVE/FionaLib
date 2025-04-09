@@ -16,8 +16,10 @@
 
 #include "glm/common.hpp"
 #include "glm/gtx/matrix_interpolation.hpp"
+#include "glm/gtc/quaternion.hpp"
 
 int fionaRenderCycleCount = 0;
+bool fionaRenderCycleCenter = false;
 bool fionaRenderCycleLeft = false;
 bool fionaRenderCycleRight= false;
 
@@ -698,6 +700,50 @@ jvec3 _FionaUTCalcEyePosition(int eye, const FionaWall &wall)
 	return eyePos;
 }
 
+#ifdef ENABLE_VIVE
+void ComposeProjection2(float fLeft, float fRight, float fTop, float fBottom, float zNear, float zFar, vr::HmdMatrix44_t *pmProj)
+{
+
+	/*float projXScale = 2.0f / (fLeft + fRight);
+	float projXOffset = (fLeft - fRight) * projXScale * 0.5f;
+	float projYScale = 2.0f / (fTop + fBottom);
+	float projYOffset = (fTop - fBottom) * projYScale * 0.5f;*/
+
+	//float idx = 1.0f / (fRight - fLeft);
+	//float idy = 1.0f / (fBottom - fTop);
+	//float idz = 1.0f / (zFar - zNear);
+	/*float sx = fLeft - fRight;
+	float sy = fTop - fBottom;
+
+	float projXScale = 2.f / (fLeft + fRight);
+	float projYScale = 2.f / (fBottom + fTop);*/
+
+	/*float(*p)[4] = pmProj->m;
+	p[0][0] = projXScale; p[0][1] = 0;     p[0][2] = -1.f * projXOffset;    p[0][3] = 0;
+	p[1][0] = 0;     p[1][1] = projYScale; p[1][2] = -1.f * -projYOffset;    p[1][3] = 0;
+	p[2][0] = 0;     p[2][1] = 0;     p[2][2] = (zNear+zFar)/(zNear-zFar); p[2][3] = 2.f*zFar*zNear/(zNear-zFar);
+	p[3][0] = 0;     p[3][1] = 0;     p[3][2] = -1.0f;     p[3][3] = 0;*/
+
+	float idx = 1.0f / (fRight - fLeft);
+	float idy = -(1.0f / (fBottom - fTop));
+	float idz = 1.0f / (zFar - zNear);
+	float sx = fRight + fLeft;
+	float sy = fBottom + fTop;
+
+	float(*p)[4] = pmProj->m;
+	p[0][0] = 2 * idx; p[0][1] = 0;     p[0][2] = sx*idx;    p[0][3] = 0;
+	p[1][0] = 0;     p[1][1] = 2 * idy; p[1][2] = sy*idy;    p[1][3] = 0;
+	p[2][0] = 0;     p[2][1] = 0;     p[2][2] = -zFar*idz; p[2][3] = -zFar*zNear*idz;
+	p[3][0] = 0;     p[3][1] = 0;     p[3][2] = -1.0f;     p[3][3] = 0;
+
+	/*float(*p)[4] = pmProj->m;
+	p[0][0] = zNear/fRight; p[0][1] = 0;     p[0][2] = 0;    p[0][3] = 0;
+	p[1][0] = 0;     p[1][1] = zNear/fTop; p[1][2] = 0;    p[1][3] = 0;
+	p[2][0] = 0;     p[2][1] = 0;     p[2][2] = -(zFar+zNear)/(zFar-zNear); p[2][3] = (-2.f * zFar*zNear)/(zFar-zNear);
+	p[3][0] = 0;     p[3][1] = 0;     p[3][2] = -1.0f;     p[3][3] = 0;*/
+}
+#endif
+
 void _FionaUTCalcMatrices(int eye, int wini, const FionaWall& wall, const FionaViewport& vp, const jvec3& _ep, int w, int h)
 {
 #ifdef ENABLE_OCULUS
@@ -750,8 +796,39 @@ void _FionaUTCalcMatrices(int eye, int wini, const FionaWall& wall, const FionaV
 	eyeRenderDesc[0] = ovr_GetRenderDesc(fionaConf.session, ovrEye_Left, fionaConf.hmdDesc.DefaultEyeFov[0]);
 	eyeRenderDesc[1] = ovr_GetRenderDesc(fionaConf.session, ovrEye_Right, fionaConf.hmdDesc.DefaultEyeFov[1]);
 
-	ovrVector3f               HmdToEyeOffset[2] = { eyeRenderDesc[0].HmdToEyeOffset,
-													eyeRenderDesc[1].HmdToEyeOffset };
+	ovrPosef               HmdToEyeOffset[2] = { eyeRenderDesc[0].HmdToEyePose,
+													eyeRenderDesc[1].HmdToEyePose };
+
+	//printf("Eye Left: %f %f %f\n", HmdToEyeOffset[0].Position.x, HmdToEyeOffset[0].Position.y, HmdToEyeOffset[0].Position.z);
+	//printf("Eye Right: %f %f %f\n", HmdToEyeOffset[1].Position.x, HmdToEyeOffset[1].Position.y, HmdToEyeOffset[1].Position.z);
+
+	if (fionaConf.singlePassStereo)
+	{
+		HmdToEyeOffset[0].Position.x = 0.f;
+		HmdToEyeOffset[0].Position.y = 0.f;
+		HmdToEyeOffset[0].Position.z = 0.f;
+		HmdToEyeOffset[1].Position.x = 0.f;
+		HmdToEyeOffset[1].Position.y = 0.f;
+		HmdToEyeOffset[1].Position.z = 0.f;
+
+		
+		ovrFovPort fovMax;
+		fovMax.UpTan = MAX(fionaConf.hmdDesc.DefaultEyeFov[0].UpTan, fionaConf.hmdDesc.DefaultEyeFov[1].UpTan);
+		fovMax.DownTan = MAX(fionaConf.hmdDesc.DefaultEyeFov[0].DownTan, fionaConf.hmdDesc.DefaultEyeFov[1].DownTan);
+		fovMax.LeftTan = MAX(fionaConf.hmdDesc.DefaultEyeFov[0].LeftTan, fionaConf.hmdDesc.DefaultEyeFov[1].LeftTan);
+		fovMax.RightTan = MAX(fionaConf.hmdDesc.DefaultEyeFov[0].RightTan, fionaConf.hmdDesc.DefaultEyeFov[1].RightTan);
+                     
+		//ovrFovPort fovMax = FovPort::Max(fionaConf.hmdDesc.DefaultEyeFov[0], fionaConf.hmdDesc.DefaultEyeFov[1]);
+		float combinedTanHalfFovHorizontal = MAX(fovMax.LeftTan, fovMax.RightTan);
+		float combinedTanHalfFovVertical = MAX(fovMax.UpTan, fovMax.DownTan);
+
+		ovrFovPort fovBoth;
+		fovBoth.LeftTan = fovBoth.RightTan = combinedTanHalfFovHorizontal;
+		fovBoth.UpTan = fovBoth.DownTan = combinedTanHalfFovVertical;
+
+		fionaConf.hmdDesc.DefaultEyeFov[0] = fovBoth;
+		fionaConf.hmdDesc.DefaultEyeFov[1] = fovBoth;
+	}
 
 	if (fionaRenderCycleCount == 0)
 	{
@@ -760,12 +837,17 @@ void _FionaUTCalcMatrices(int eye, int wini, const FionaWall& wall, const FionaV
 		ovr_CalcEyePoses(hmdState.HeadPose.ThePose, HmdToEyeOffset, fionaConf.eyeRenderPose);
 	}
 	//ovr_GetEyePoses(fionaConf.session, fionaConf.frameIndex, ovrTrue, HmdToEyeOffset, fionaConf.eyeRenderPose, &fionaConf.sensorSampleTime);
-	
-	fionaConf.headPos = jvec3(fionaConf.eyeRenderPose[eye == 2 ? 1 : 0].Position.x, fionaConf.eyeRenderPose[eye == 2 ? 1 : 0].Position.y, fionaConf.eyeRenderPose[eye == 2 ? 1 : 0].Position.z);
+	//printf("Eye: %d\n", eye);
+	//printf("Left: %f, %f, %f\n", fionaConf.eyeRenderPose[0].Position.x, fionaConf.eyeRenderPose[0].Position.y, fionaConf.eyeRenderPose[0].Position.z);
+	//printf("Right: %f, %f, %f\n", fionaConf.eyeRenderPose[1].Position.x, fionaConf.eyeRenderPose[1].Position.y, fionaConf.eyeRenderPose[1].Position.z);
+	fionaConf.headPos = jvec3(fionaConf.eyeRenderPose[eye == 2 ? 1 : 0].Position.x, fionaConf.eyeRenderPose[eye == 2 ? 1 : 0].Position.y, fionaConf.eyeRenderPose[eye == 2 ? 1 : 0].Position.z);// -jvec3(HmdToEyeOffset[0].Position.x, HmdToEyeOffset[0].Position.y, HmdToEyeOffset[0].Position.z);
 	fionaConf.headRot = quat(fionaConf.eyeRenderPose[eye == 2 ? 1 : 0].Orientation.w, fionaConf.eyeRenderPose[eye == 2 ? 1 : 0].Orientation.x, fionaConf.eyeRenderPose[eye == 2 ? 1 : 0].Orientation.y, fionaConf.eyeRenderPose[eye == 2 ? 1 : 0].Orientation.z);
 
 	//this also sets viewport...
-	fionaConf.eyeRenderTexture[eye == 2 ? 1 : 0]->SetAndClearRenderSurface(fionaConf.eyeDepthBuffer[eye == 2 ? 1 : 0]);
+	if (!fionaConf.singlePassStereo)
+	{
+		fionaConf.eyeRenderTexture[eye == 2 ? 1 : 0]->SetAndClearRenderSurface(fionaConf.eyeDepthBuffer[eye == 2 ? 1 : 0]);
+	}
 	
 #endif
 #endif
@@ -844,8 +926,16 @@ void _FionaUTCalcMatrices(int eye, int wini, const FionaWall& wall, const FionaV
 			}
 			else
 			{
-				glm::mat4 mvp = fionaConf.projLeft * fionaConf.mvLeft * fionaConf.hmdPose;
-				glMultMatrix(glm::value_ptr(mvp));
+				if (fionaConf.singlePassStereo)
+				{
+					glm::mat4 mvp = fionaConf.projLeft;
+					glMultMatrix(glm::value_ptr(mvp));
+				}
+				else
+				{
+					glm::mat4 mvp = fionaConf.projLeft * fionaConf.mvLeft * fionaConf.hmdPose;
+					glMultMatrix(glm::value_ptr(mvp));
+				}
 			}
 #else
 			glMultMatrix(viewportProjection(vp)*projectorCalibration(vp)*caveProjection(wall.sz,_ep));
@@ -922,7 +1012,7 @@ void _FionaUTCalcMatrices(int eye, int wini, const FionaWall& wall, const FionaV
 	// Since the modelview matrix should be set to make the origin matches to the head position,
 	//  (NOTE: one can set it to the eye position..)
 	// it puts the origin back to the cave origin.
-
+#ifndef ENABLE_VIVE
 	if(fionaConf.appType != FionaConfig::OCULUS)
 	{
 		glTranslate(_ep);
@@ -934,18 +1024,10 @@ void _FionaUTCalcMatrices(int eye, int wini, const FionaWall& wall, const FionaV
 	glLoadIdentity();
 
 	// place the origin to the head position
-	if(fionaConf.appType == FionaConfig::OCULUS)
-	{
-		glRotate(fionaConf.headRot.inv());
-	}
-	else
-	{
-		glTranslate(-_ep);
-	}
-
-	// rotate the world to align the screen to the x-y plane.
 	if(fionaConf.appType != FionaConfig::OCULUS)
 	{
+		glTranslate(-_ep);
+	
 		if( fionaConf.monitorView ) 
 		{
 			if(fionaConf.appType == FionaConfig::HEADNODE || fionaConf.appType == FionaConfig::WINDOWED)
@@ -968,12 +1050,80 @@ void _FionaUTCalcMatrices(int eye, int wini, const FionaWall& wall, const FionaV
 		}
 	}
 		
-	if(fionaConf.appType == FionaConfig::OCULUS)
+#else
+	if (fionaConf.singlePassStereo)
 	{
-		//for oculus, translate after the tracker & world rotation.
-		//glTranslate(-_ep);
+		//glMultMatrix(glm::value_ptr(glm::inverse(fionaConf.mvLeft)));
+		//printf("%f %f %f\n", _ep.x, _ep.y, _ep.z);
+		//glTranslate(_ep);
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadIdentity();
+
+		glm::mat4 mv = fionaConf.mvLeft * fionaConf.hmdPose;
+
+		glMultMatrix(glm::value_ptr(mv));
+
+		/*glRotate(fionaConf.headRot.inv());
 		glTranslate(-fionaConf.headPos);
+		printf("%f %f %f\n", fionaConf.headPos.x, fionaConf.headPos.y, fionaConf.headPos.z);
+		printf("%f %f %f %f\n", fionaConf.headRot.x, fionaConf.headRot.y, fionaConf.headRot.z, fionaConf.headRot.w);*/
 	}
+	else
+	{
+		if (fionaConf.appType != FionaConfig::OCULUS)
+		{
+			glTranslate(_ep);
+		}
+
+		// In model view matrix
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadIdentity();
+
+		// place the origin to the head position
+		if (fionaConf.appType == FionaConfig::OCULUS)
+		{
+			glRotate(fionaConf.headRot.inv());
+		}
+		else
+		{
+			glTranslate(-_ep);
+		}
+
+		// rotate the world to align the screen to the x-y plane.
+		if (fionaConf.appType != FionaConfig::OCULUS)
+		{
+			if (fionaConf.monitorView)
+			{
+				if (fionaConf.appType == FionaConfig::HEADNODE || fionaConf.appType == FionaConfig::WINDOWED)
+				{
+					glTranslate(-fionaConf.monitorStepBack*ZAXIS);
+				}
+			}
+
+			//if(!fionaConf.desktopProjection)
+			glRotate(wall.preRot);
+
+			if (fionaConf.monitorView || fionaConf.wandView)
+			{
+				if (fionaConf.appType == FionaConfig::HEADNODE || fionaConf.appType == FionaConfig::WINDOWED)
+				{
+					//glRotatef(-15.0f, 1.f, 0.f, 0.f);
+					glRotate(fionaConf.monitorCamOri.inv());
+					glTranslate(-fionaConf.monitorCamPos);
+				}
+			}
+		}
+
+		if (fionaConf.appType == FionaConfig::OCULUS)
+		{
+			//for oculus, translate after the tracker & world rotation.
+			//glTranslate(-_ep);
+			glTranslate(-fionaConf.headPos);
+		}
+	}
+#endif
 
 #ifndef BIG_OPENGL_OPT
 	//majority of the below function calls really don't get used as most of the time
@@ -1030,45 +1180,52 @@ void renderSingle(int eye, int wini, const FionaWall& wall, const FionaViewport&
 		printf("Well, a window does not have display function\n");
 	
 	//this could be redundant but we don't know for sure whether the person adjusted the matrix mode inside their display func..
-	glMatrixMode(GL_MODELVIEW); 
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION); 
-	glPopMatrix();
-	
+	//if (!fionaConf.singlePassStereo)
+	{
+		glMatrixMode(GL_MODELVIEW);
+		glPopMatrix();
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+	}
 #ifdef ENABLE_OCULUS
 #ifdef ENABLE_CV1
-	fionaConf.eyeRenderTexture[eye == 2 ? 1 : 0]->UnsetRenderSurface();
-	// Commit changes to the textures so they get picked up frame
-	fionaConf.eyeRenderTexture[eye == 2 ? 1 : 0]->Commit();
+	if (!fionaConf.singlePassStereo)
+	{
+		fionaConf.eyeRenderTexture[eye == 2 ? 1 : 0]->UnsetRenderSurface();
+		// Commit changes to the textures so they get picked up frame
+		fionaConf.eyeRenderTexture[eye == 2 ? 1 : 0]->Commit();
+	}
 #endif
 #endif
 #ifdef ENABLE_VIVE
 	
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	if (eye == 2)
+	if (!fionaConf.singlePassStereo)
 	{
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, fionaConf.rightEyeDesc.m_nRenderFramebufferId);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fionaConf.rightEyeDesc.m_nResolveFramebufferId);
+		//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		if (eye == 2)
+		{
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, fionaConf.rightEyeDesc.m_nRenderFramebufferId);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fionaConf.rightEyeDesc.m_nResolveFramebufferId);
 
-		glBlitFramebuffer(0, 0, fionaConf.FBOWidth, fionaConf.FBOHeight, 0, 0, fionaConf.FBOWidth, fionaConf.FBOHeight,
-			GL_COLOR_BUFFER_BIT,
-			GL_LINEAR);
+			glBlitFramebuffer(0, 0, fionaConf.FBOWidth, fionaConf.FBOHeight, 0, 0, fionaConf.FBOWidth, fionaConf.FBOHeight,
+				GL_COLOR_BUFFER_BIT,
+				GL_LINEAR);
 
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	}
-	else
-	{
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, fionaConf.leftEyeDesc.m_nRenderFramebufferId);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fionaConf.leftEyeDesc.m_nResolveFramebufferId);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		}
+		else
+		{
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, fionaConf.leftEyeDesc.m_nRenderFramebufferId);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fionaConf.leftEyeDesc.m_nResolveFramebufferId);
 
-		glBlitFramebuffer(0, 0, fionaConf.FBOWidth, fionaConf.FBOHeight, 0, 0, fionaConf.FBOWidth, fionaConf.FBOHeight,
-			GL_COLOR_BUFFER_BIT,
-			GL_LINEAR);
+			glBlitFramebuffer(0, 0, fionaConf.FBOWidth, fionaConf.FBOHeight, 0, 0, fionaConf.FBOWidth, fionaConf.FBOHeight,
+				GL_COLOR_BUFFER_BIT,
+				GL_LINEAR);
 
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		}
 	}
 
 #endif
@@ -1816,6 +1973,12 @@ void renderEye(int eye,int wini,const jvec3& ep)
 	}
 }
 
+void	_FionaUTDisplaySecondWindow(WIN win, CTX cntx)
+{
+	jvec3 ep = fionaConf.kevinOffset;
+	renderEye(0, 1, ep);
+}
+
 void	_FionaUTDisplay		(WIN win, CTX cntx)
 {
 	int i = _FionaUTFindWindow(win); 
@@ -1852,7 +2015,98 @@ void	_FionaUTDisplay		(WIN win, CTX cntx)
 	}
 #endif
 #endif
-	
+
+#ifdef ENABLE_VIVE
+
+	vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
+
+	//this should be done in preRender...
+	//this gets hmd, controller matrices, etc..
+	vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, NULL, 0);
+
+	glm::mat4 m_rmat4DevicePose[vr::k_unMaxTrackedDeviceCount];
+
+	int m_iValidPoseCount = 0;
+	std::string m_strPoseClasses = "";
+	char m_rDevClassChar[vr::k_unMaxTrackedDeviceCount];
+	memset(m_rDevClassChar, 0, sizeof(vr::k_unMaxTrackedDeviceCount));
+	for (int nDevice = 0; nDevice < vr::k_unMaxTrackedDeviceCount; ++nDevice)
+	{
+		if (m_rTrackedDevicePose[nDevice].bPoseIsValid)
+		{
+			m_iValidPoseCount++;
+			glm::mat4 matrixObj(
+				m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[0][0], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[1][0], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[2][0], 0.0,
+				m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[0][1], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[1][1], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[2][1], 0.0,
+				m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[0][2], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[1][2], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[2][2], 0.0,
+				m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[0][3], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[1][3], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[2][3], 1.0f
+				);
+			//may have to transpose this...
+			m_rmat4DevicePose[nDevice] = matrixObj;//ConvertSteamVRMatrixToMatrix4(m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking);
+			if (m_rDevClassChar[nDevice] == 0)
+			{
+				switch (fionaConf.m_pHMD->GetTrackedDeviceClass(nDevice))
+				{
+					case vr::TrackedDeviceClass_Controller:        m_rDevClassChar[nDevice] = 'C'; break;
+					case vr::TrackedDeviceClass_HMD:               m_rDevClassChar[nDevice] = 'H'; break;
+					case vr::TrackedDeviceClass_Invalid:           m_rDevClassChar[nDevice] = 'I'; break;
+					case vr::TrackedDeviceClass_TrackingReference: m_rDevClassChar[nDevice] = 'T'; break;
+					default:                                       m_rDevClassChar[nDevice] = '?'; break;
+				}
+			}
+
+			//printf("%u\n", fionaConf.m_pHMD->GetTrackedDeviceClass(nDevice));
+
+			if (m_rDevClassChar[nDevice] == 'C')
+			{
+				if (m_rTrackedDevicePose[vr::TrackedDeviceClass_Controller].bDeviceIsConnected && m_rTrackedDevicePose[vr::TrackedDeviceClass_Controller].bPoseIsValid)
+				{
+					glm::mat4 wandPose = glm::inverse(m_rmat4DevicePose[nDevice]);
+					/*printf("%f, %f, %f, %f\n", wandPose[0][0], wandPose[0][1], wandPose[0][2], wandPose[0][3]);
+					printf("%f, %f, %f, %f\n", wandPose[1][0], wandPose[1][1], wandPose[1][2], wandPose[1][3]);
+					printf("%f, %f, %f, %f\n", wandPose[2][0], wandPose[2][1], wandPose[2][2], wandPose[2][3]);
+					printf("%f, %f, %f, %f\n", wandPose[3][0], wandPose[3][1], wandPose[3][2], wandPose[3][3]);
+					printf("******************************\n");*/
+					fionaConf.wandPos = jvec3(wandPose[3][0], wandPose[3][1], wandPose[3][2]);
+
+					glm::mat3 m(wandPose[0][0], wandPose[0][1], wandPose[0][2],
+						wandPose[1][0], wandPose[1][1], wandPose[1][2],
+						wandPose[2][0], wandPose[2][1], wandPose[2][2]);
+
+					m = glm::transpose(m);
+
+					glm::quat q(m);
+
+					fionaConf.wandRot = quat(q.w, q.x, q.y, q.z);
+
+					/*glm::mat3 m(fionaConf.hmdPose);
+					m = glm::transpose(m);
+					glm::vec3 vX(state.rAxis[0].x*fionaConf.navigationSpeed, 0, 0);
+					glm::vec3 newX = m * vX;
+					glm::vec3 vY(0, 0, -state.rAxis[0].y*fionaConf.navigationSpeed);
+					glm::vec3 newY = m * vY;
+					//newY = glm::normalize(newY);
+					//newX = glm::normalize(newX);
+					if (navMode == WAND_WORLD_PHYSICS)
+					{
+					newX.y = 0.f;
+					newY.y = 0.f;
+					}
+					camPos += camOri.rot(jvec3(newX.x, newX.y, newX.z));
+					camPos += camOri.rot(jvec3(newY.x, newY.y, newY.z));*/
+				}
+			}
+
+			m_strPoseClasses += m_rDevClassChar[nDevice];
+		}
+	}
+
+	if (m_rTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid)
+	{
+		fionaConf.hmdPose = glm::inverse(m_rmat4DevicePose[vr::k_unTrackedDeviceIndex_Hmd]);// .invert();
+	}
+#endif
+
 	jvec3 ep = fionaConf.kevinOffset;
 
 #ifdef ENABLE_OCULUS
@@ -1882,6 +2136,10 @@ void	_FionaUTDisplay		(WIN win, CTX cntx)
 		}
 		else
 		{
+			/*fionaRenderCycleCenter = true;
+			renderEye(0, i, ep);
+			fionaRenderCycleCenter = false;*/
+
 			fionaRenderCycleLeft = true;
 			renderEye(1,i,ep+fionaConf.lEyeOffset);
 			fionaRenderCycleLeft = false;
@@ -1893,9 +2151,12 @@ void	_FionaUTDisplay		(WIN win, CTX cntx)
 #endif
 #endif
 #endif 
-			fionaRenderCycleRight= true;
-			renderEye(2,i,ep+fionaConf.rEyeOffset);
-			fionaRenderCycleRight= false;	
+			if (!fionaConf.singlePassStereo)
+			{
+				fionaRenderCycleRight = true;
+				renderEye(2, i, ep + fionaConf.rEyeOffset);
+				fionaRenderCycleRight = false;
+			}
 		}
 	}
 	else
@@ -1976,31 +2237,25 @@ void	_FionaUTDisplay		(WIN win, CTX cntx)
 		//these three functions should happen in renderSingle...
 		//DrawControllers();
 		//RenderStereoTargets();
-		//RenderDistortion();
 
-		//render distortion...
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
-		static GLuint m_unLensVAO = 0;
-		static GLuint m_unLensProgramID = 0;
-		static GLuint m_uiIndexSize = 0;
-		static GLuint m_glIDVertBuffer = 0;
-		static GLuint m_glIDIndexBuffer = 0;
+		static GLuint m_unCompanionWindowVAO;
+		static GLuint m_glCompanionWindowIDVertBuffer;
+		static GLuint m_glCompanionWindowIDIndexBuffer;
+		static GLuint m_unCompanionWindowProgramID = 0;
+		static unsigned int m_uiCompanionWindowIndexSize;
+
 		static const char * sDistortionVert =
 			"#version 410 core\n"
 			"layout(location = 0) in vec2 position;\n"
-			"layout(location = 1) in vec2 v2UVredIn;\n"
-			"layout(location = 2) in vec2 v2UVGreenIn;\n"
-			"layout(location = 3) in vec2 v2UVblueIn;\n"
-			"noperspective  out vec2 v2UVred;\n"
-			"noperspective  out vec2 v2UVgreen;\n"
-			"noperspective  out vec2 v2UVblue;\n"
+			"layout(location = 1) in vec2 v2UVIn;\n"
+			"noperspective  out vec2 v2UV;\n"
+
 			"void main()\n"
 			"{\n"
-			"	v2UVred = v2UVredIn;\n"
-			"	v2UVgreen = v2UVGreenIn;\n"
-			"	v2UVblue = v2UVblueIn;\n"
+			"	v2UV = v2UVIn;\n"
 			"	gl_Position = vec4(position, 0.0, 1.0);\n"
 			"}\n";
 
@@ -2009,162 +2264,65 @@ void	_FionaUTDisplay		(WIN win, CTX cntx)
 			"#version 410 core\n"
 			"uniform sampler2D mytexture;\n"
 
-			"noperspective  in vec2 v2UVred;\n"
-			"noperspective  in vec2 v2UVgreen;\n"
-			"noperspective  in vec2 v2UVblue;\n"
+			"noperspective  in vec2 v2UV;\n"
 
 			"out vec4 outputColor;\n"
 
 			"void main()\n"
 			"{\n"
-			"	float fBoundsCheck = ( (dot( vec2( lessThan( v2UVgreen.xy, vec2(0.05, 0.05)) ), vec2(1.0, 1.0))+dot( vec2( greaterThan( v2UVgreen.xy, vec2( 0.95, 0.95)) ), vec2(1.0, 1.0))) );\n"
-			"	if( fBoundsCheck > 1.0 )\n"
-			"	{ outputColor = vec4( 0, 0, 0, 1.0 ); }\n"
-			"	else\n"
-			"	{\n"
-			"		float red = texture(mytexture, v2UVred).x;\n"
-			"		float green = texture(mytexture, v2UVgreen).y;\n"
-			"		float blue = texture(mytexture, v2UVblue).z;\n"
-			"		outputColor = vec4( red, green, blue, 1.0  );\n"
-			"   }\n"
+			"		outputColor = texture(mytexture, v2UV); \n"
 			"}\n";
 
-		if (m_unLensProgramID == 0)
+		if (m_unCompanionWindowProgramID == 0)
 		{
-			m_unLensProgramID = loadProgram(std::string(sDistortionVert), std::string(sDistortionFrag), true);
+			m_unCompanionWindowProgramID = loadProgram(std::string(sDistortionVert), std::string(sDistortionFrag), true);
 
 			glUseProgram(0);
-
-			struct VertexDataLens
+			struct VertexDataWindow
 			{
 				glm::vec2 position;
-				glm::vec2 texCoordRed;
-				glm::vec2 texCoordGreen;
-				glm::vec2 texCoordBlue;
+				glm::vec2 texCoord;
+
+				VertexDataWindow(const glm::vec2 & pos, const glm::vec2 tex) : position(pos), texCoord(tex) {	}
 			};
+			std::vector<VertexDataWindow> vVerts;
 
-			GLushort m_iLensGridSegmentCountH = 43;
-			GLushort m_iLensGridSegmentCountV = 43;
+			// left eye verts
+			vVerts.push_back(VertexDataWindow(glm::vec2(-1, -1), glm::vec2(0, 1)));
+			vVerts.push_back(VertexDataWindow(glm::vec2(0, -1), glm::vec2(1, 1)));
+			vVerts.push_back(VertexDataWindow(glm::vec2(-1, 1), glm::vec2(0, 0)));
+			vVerts.push_back(VertexDataWindow(glm::vec2(0, 1), glm::vec2(1, 0)));
 
-			float w = (float)(1.0 / float(m_iLensGridSegmentCountH - 1));
-			float h = (float)(1.0 / float(m_iLensGridSegmentCountV - 1));
+			// right eye verts
+			vVerts.push_back(VertexDataWindow(glm::vec2(0, -1), glm::vec2(0, 1)));
+			vVerts.push_back(VertexDataWindow(glm::vec2(1, -1), glm::vec2(1, 1)));
+			vVerts.push_back(VertexDataWindow(glm::vec2(0, 1), glm::vec2(0, 0)));
+			vVerts.push_back(VertexDataWindow(glm::vec2(1, 1), glm::vec2(1, 0)));
 
-			float u, v = 0;
+			GLushort vIndices[] = { 0, 1, 3, 0, 3, 2, 4, 5, 7, 4, 7, 6 };
+			m_uiCompanionWindowIndexSize = _countof(vIndices);
 
-			std::vector<VertexDataLens> vVerts(0);
-			VertexDataLens vert;
+			glGenVertexArrays(1, &m_unCompanionWindowVAO);
+			glBindVertexArray(m_unCompanionWindowVAO);
 
-			//left eye distortion verts
-			float Xoffset = -1;
-			for (int y = 0; y<m_iLensGridSegmentCountV; y++)
-			{
-				for (int x = 0; x<m_iLensGridSegmentCountH; x++)
-				{
-					u = x*w; v = 1 - y*h;
-					vert.position = glm::vec2(Xoffset + u, -1 + 2 * y*h);
+			glGenBuffers(1, &m_glCompanionWindowIDVertBuffer);
+			glBindBuffer(GL_ARRAY_BUFFER, m_glCompanionWindowIDVertBuffer);
+			glBufferData(GL_ARRAY_BUFFER, vVerts.size()*sizeof(VertexDataWindow), &vVerts[0], GL_STATIC_DRAW);
 
-					vr::DistortionCoordinates_t dc0;
-					fionaConf.m_pHMD->ComputeDistortion(vr::Eye_Left, u, v, &dc0);
-
-					vert.texCoordRed = glm::vec2(dc0.rfRed[0], 1 - dc0.rfRed[1]);
-					vert.texCoordGreen = glm::vec2(dc0.rfGreen[0], 1 - dc0.rfGreen[1]);
-					vert.texCoordBlue = glm::vec2(dc0.rfBlue[0], 1 - dc0.rfBlue[1]);
-
-					vVerts.push_back(vert);
-				}
-			}
-
-			//right eye distortion verts
-			Xoffset = 0;
-			for (int y = 0; y<m_iLensGridSegmentCountV; y++)
-			{
-				for (int x = 0; x<m_iLensGridSegmentCountH; x++)
-				{
-					u = x*w; v = 1 - y*h;
-					vert.position = glm::vec2(Xoffset + u, -1 + 2 * y*h);
-
-					vr::DistortionCoordinates_t dc0;
-					fionaConf.m_pHMD->ComputeDistortion(vr::Eye_Right, u, v, &dc0);
-
-					vert.texCoordRed = glm::vec2(dc0.rfRed[0], 1 - dc0.rfRed[1]);
-					vert.texCoordGreen = glm::vec2(dc0.rfGreen[0], 1 - dc0.rfGreen[1]);
-					vert.texCoordBlue = glm::vec2(dc0.rfBlue[0], 1 - dc0.rfBlue[1]);
-
-					vVerts.push_back(vert);
-				}
-			}
-
-			std::vector<GLushort> vIndices;
-			GLushort a, b, c, d;
-
-			GLushort offset = 0;
-			for (GLushort y = 0; y<m_iLensGridSegmentCountV - 1; y++)
-			{
-				for (GLushort x = 0; x<m_iLensGridSegmentCountH - 1; x++)
-				{
-					a = m_iLensGridSegmentCountH*y + x + offset;
-					b = m_iLensGridSegmentCountH*y + x + 1 + offset;
-					c = (y + 1)*m_iLensGridSegmentCountH + x + 1 + offset;
-					d = (y + 1)*m_iLensGridSegmentCountH + x + offset;
-					vIndices.push_back(a);
-					vIndices.push_back(b);
-					vIndices.push_back(c);
-
-					vIndices.push_back(a);
-					vIndices.push_back(c);
-					vIndices.push_back(d);
-				}
-			}
-
-			offset = (m_iLensGridSegmentCountH)*(m_iLensGridSegmentCountV);
-			for (GLushort y = 0; y<m_iLensGridSegmentCountV - 1; y++)
-			{
-				for (GLushort x = 0; x<m_iLensGridSegmentCountH - 1; x++)
-				{
-					a = m_iLensGridSegmentCountH*y + x + offset;
-					b = m_iLensGridSegmentCountH*y + x + 1 + offset;
-					c = (y + 1)*m_iLensGridSegmentCountH + x + 1 + offset;
-					d = (y + 1)*m_iLensGridSegmentCountH + x + offset;
-					vIndices.push_back(a);
-					vIndices.push_back(b);
-					vIndices.push_back(c);
-
-					vIndices.push_back(a);
-					vIndices.push_back(c);
-					vIndices.push_back(d);
-				}
-			}
-			m_uiIndexSize = vIndices.size();
-
-			glGenVertexArrays(1, &m_unLensVAO);
-			glBindVertexArray(m_unLensVAO);
-
-			glGenBuffers(1, &m_glIDVertBuffer);
-			glBindBuffer(GL_ARRAY_BUFFER, m_glIDVertBuffer);
-			glBufferData(GL_ARRAY_BUFFER, vVerts.size()*sizeof(VertexDataLens), &vVerts[0], GL_STATIC_DRAW);
-
-			glGenBuffers(1, &m_glIDIndexBuffer);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_glIDIndexBuffer);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, vIndices.size()*sizeof(GLushort), &vIndices[0], GL_STATIC_DRAW);
+			glGenBuffers(1, &m_glCompanionWindowIDIndexBuffer);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_glCompanionWindowIDIndexBuffer);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_uiCompanionWindowIndexSize*sizeof(GLushort), &vIndices[0], GL_STATIC_DRAW);
 
 			glEnableVertexAttribArray(0);
-			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataLens), (void *)offsetof(VertexDataLens, position));
+			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), (void *)offsetof(VertexDataWindow, position));
 
 			glEnableVertexAttribArray(1);
-			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataLens), (void *)offsetof(VertexDataLens, texCoordRed));
-
-			glEnableVertexAttribArray(2);
-			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataLens), (void *)offsetof(VertexDataLens, texCoordGreen));
-
-			glEnableVertexAttribArray(3);
-			glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataLens), (void *)offsetof(VertexDataLens, texCoordBlue));
+			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), (void *)offsetof(VertexDataWindow, texCoord));
 
 			glBindVertexArray(0);
 
 			glDisableVertexAttribArray(0);
 			glDisableVertexAttribArray(1);
-			glDisableVertexAttribArray(2);
-			glDisableVertexAttribArray(3);
 
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -2172,8 +2330,8 @@ void	_FionaUTDisplay		(WIN win, CTX cntx)
 
 		glViewport(0, 0, fionaConf.FBOWidth, fionaConf.FBOHeight);
 
-		GLuint loc = glGetUniformLocation(m_unLensProgramID, "mytexture");
-		glUseProgram(m_unLensProgramID);
+		GLuint loc = glGetUniformLocation(m_unCompanionWindowProgramID, "mytexture");
+		glUseProgram(m_unCompanionWindowProgramID);
 		
 		//render left lens (first half of index array )
 		//glActiveTexture(GL_TEXTURE0 + 0);
@@ -2184,10 +2342,10 @@ void	_FionaUTDisplay		(WIN win, CTX cntx)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-		glBindVertexArray(m_unLensVAO);
-		glDrawElements(GL_TRIANGLES, m_uiIndexSize / 2, GL_UNSIGNED_SHORT, 0);
+		glBindVertexArray(m_unCompanionWindowVAO);
+		glDrawElements(GL_TRIANGLES, m_uiCompanionWindowIndexSize / 2, GL_UNSIGNED_SHORT, 0);
 		glBindVertexArray(0);
 
 		//glActiveTexture(GL_TEXTURE0 + 0);
@@ -2199,10 +2357,10 @@ void	_FionaUTDisplay		(WIN win, CTX cntx)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
-		glBindVertexArray(m_unLensVAO);
-		glDrawElements(GL_TRIANGLES, m_uiIndexSize / 2, GL_UNSIGNED_SHORT, (const void *)(m_uiIndexSize));
+		glBindVertexArray(m_unCompanionWindowVAO);
+		glDrawElements(GL_TRIANGLES, m_uiCompanionWindowIndexSize / 2, GL_UNSIGNED_SHORT, (const void *)(m_uiCompanionWindowIndexSize));
 		glBindVertexArray(0); 
 
 		glBindTexture(GL_TEXTURE_2D, 0);
@@ -2213,64 +2371,6 @@ void	_FionaUTDisplay		(WIN win, CTX cntx)
 		vr::Texture_t rightEyeTexture = { (void*)fionaConf.rightEyeDesc.m_nResolveTextureId, vr::TextureType_OpenGL, vr::ColorSpace_Gamma };
 		vr::VRCompositor()->Submit(vr::Eye_Right, &rightEyeTexture);
 
-		vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
-
-		//this gets hmd, controller matrices, etc..
-		vr::VRCompositor()->WaitGetPoses(m_rTrackedDevicePose, vr::k_unMaxTrackedDeviceCount, NULL, 0);
-		
-		glm::mat4 m_rmat4DevicePose[vr::k_unMaxTrackedDeviceCount];
-
-		int m_iValidPoseCount = 0;
-		std::string m_strPoseClasses = "";
-		char m_rDevClassChar[vr::k_unMaxTrackedDeviceCount];
-
-		for (int nDevice = 0; nDevice < vr::k_unMaxTrackedDeviceCount; ++nDevice)
-		{
-			if (m_rTrackedDevicePose[nDevice].bPoseIsValid)
-			{
-				m_iValidPoseCount++;
-				glm::mat4 matrixObj(
-					m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[0][0], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[1][0], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[2][0], 0.0,
-					m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[0][1], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[1][1], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[2][1], 0.0,
-					m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[0][2], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[1][2], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[2][2], 0.0,
-					m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[0][3], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[1][3], m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking.m[2][3], 1.0f
-					);
-				//may have to transpose this...
-				m_rmat4DevicePose[nDevice] = matrixObj;//ConvertSteamVRMatrixToMatrix4(m_rTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking);
-				if (m_rDevClassChar[nDevice] == 0)
-				{
-					switch (fionaConf.m_pHMD->GetTrackedDeviceClass(nDevice))
-					{
-						case vr::TrackedDeviceClass_Controller:        m_rDevClassChar[nDevice] = 'C'; break;
-						case vr::TrackedDeviceClass_HMD:               m_rDevClassChar[nDevice] = 'H'; break;
-						case vr::TrackedDeviceClass_Invalid:           m_rDevClassChar[nDevice] = 'I'; break;
-						case vr::TrackedDeviceClass_TrackingReference: m_rDevClassChar[nDevice] = 'T'; break;
-						default:                                       m_rDevClassChar[nDevice] = '?'; break;
-					}
-				}
-
-				if (m_rDevClassChar[nDevice] == 'C')
-				{
-					if (m_rTrackedDevicePose[vr::TrackedDeviceClass_Controller].bDeviceIsConnected && m_rTrackedDevicePose[vr::TrackedDeviceClass_Controller].bPoseIsValid)
-					{
-						glm::mat4 wandPose = glm::inverse(m_rmat4DevicePose[nDevice]);
-						/*printf("%f, %f, %f, %f\n", wandPose[0][0], wandPose[0][1], wandPose[0][2], wandPose[0][3]);
-						printf("%f, %f, %f, %f\n", wandPose[1][0], wandPose[1][1], wandPose[1][2], wandPose[1][3]);
-						printf("%f, %f, %f, %f\n", wandPose[2][0], wandPose[2][1], wandPose[2][2], wandPose[2][3]);
-						printf("%f, %f, %f, %f\n", wandPose[3][0], wandPose[3][1], wandPose[3][2], wandPose[3][3]);
-						printf("******************************\n");*/
-						fionaConf.wandPos = jvec3(wandPose[3][0], wandPose[3][1], wandPose[3][2]);
-					}
-				}
-
-				m_strPoseClasses += m_rDevClassChar[nDevice];
-			}
-		}
-
-		if (m_rTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid)
-		{
-			fionaConf.hmdPose = glm::inverse(m_rmat4DevicePose[vr::k_unTrackedDeviceIndex_Hmd]);// .invert();
-		}
 	}
 #endif
 

@@ -209,12 +209,6 @@ public:
         {
         }
 
-        SendTextMessageBoundCall(SendTextMessageBoundCall const &other)
-            : _p(other._p)
-            , _severity(other._severity)
-        {
-        }
-
         int operator()(const char *msg) const
         {
             struct timeval timestamp;
@@ -369,27 +363,6 @@ public:
     typedef void(VRPN_CALLBACK *HANDLER_TYPE)(void *userdata,
                                               const CALLBACK_STRUCT info);
 
-    /// This class requires deep copies.
-    void operator=(const vrpn_Callback_List &from)
-    {
-        // Delete any existing elements in the list.
-        CHANGELIST_ENTRY *current, *next;
-        current = d_change_list;
-        while (current != NULL) {
-            next = current->next;
-            delete current;
-            current = next;
-        }
-
-        // Copy all elements from the other list.  XXX Side effect, this inverts
-        // the order
-        current = from.d_change_list;
-        while (current != NULL) {
-            register_handler(current->userdata, current->handler);
-            current = current->next;
-        }
-    }
-
     /// Call this to add a handler to the list.
     int register_handler(void *userdata, HANDLER_TYPE handler)
     {
@@ -403,10 +376,12 @@ public:
         }
 
         // Allocate and initialize the new entry
-        if ((new_entry = new CHANGELIST_ENTRY) == NULL) {
-            fprintf(stderr,
-                    "vrpn_Callback_List::register_handler(): Out of memory\n");
-            return -1;
+        try {
+          new_entry = new CHANGELIST_ENTRY;
+        } catch (...) {
+          fprintf(stderr,
+            "vrpn_Callback_List::register_handler(): Out of memory\n");
+          return -1;
         }
         new_entry->handler = handler;
         new_entry->userdata = userdata;
@@ -445,7 +420,12 @@ public:
 
         // Remove the entry from the list
         *snitch = victim->next;
-        delete victim;
+        try {
+          delete victim;
+        } catch (...) {
+          fprintf(stderr, "vrpn_Callback_List::unregister_handler: delete failed\n");
+          return -1;
+        }
 
         return 0;
     };
@@ -464,12 +444,58 @@ public:
     vrpn_Callback_List()
         : d_change_list(NULL){};
 
+    /// This class requires deep copies.
+    vrpn_Callback_List(const vrpn_Callback_List& from)
+      : d_change_list(NULL)
+    {
+      // Copy all elements from the other list.  XXX Side effect, this inverts
+      // the order
+      CHANGELIST_ENTRY *current, *next;
+      current = from.d_change_list;
+      while (current != NULL) {
+        register_handler(current->userdata, current->handler);
+        current = current->next;
+      }
+    }
+
+    void operator=(const vrpn_Callback_List& from)
+    {
+      // Delete any existing elements in the list.
+      CHANGELIST_ENTRY* current, * next;
+      current = d_change_list;
+      while (current != NULL) {
+        next = current->next;
+        try {
+          delete current;
+        }
+        catch (...) {
+          fprintf(stderr,
+            "vrpn_Callback_List::operator =: Deletion failure\n");
+          return;
+        }
+        current = next;
+      }
+
+      // Copy all elements from the other list.  XXX Side effect, this inverts
+      // the order
+      current = from.d_change_list;
+      while (current != NULL) {
+        register_handler(current->userdata, current->handler);
+        current = current->next;
+      }
+    }
+
     /// Clear the list upon destruction if it is not empty already
     ~vrpn_Callback_List()
     {
         while (d_change_list != NULL) {
             CHANGELIST_ENTRY *next = d_change_list->next;
-            delete d_change_list;
+            try {
+              delete d_change_list;
+            } catch (...) {
+              fprintf(stderr, "vrpn_Callback_List::~vrpn_Callback_List: delete failed\n");
+              return;
+            }
             d_change_list = next;
         }
     };

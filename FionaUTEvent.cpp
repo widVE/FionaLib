@@ -148,7 +148,7 @@ void _FionaUTWandButton	(int b, int s, int idx)
 	if(fionaConf.wandButtonFunc)fionaConf.wandButtonFunc(b,s, idx);
 }
 
-void _FionaUTJoystick	(int i, const jvec3& p)
+void _FionaUTJoystick	(int i, const vec4& p)
 {
 	fionaConf.currentJoystick = p;
 	if(fionaNetMaster)			_FionaUTSyncSendJoystick(i,p);
